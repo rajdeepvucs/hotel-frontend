@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@layer components {
+    .three-d-effect {
+        background-color: #f9f9f9;  /* Light background color */
+        border: 1px solid #ddd;     /* Border */
+        box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.1);  /* Subtle shadow */
+        padding: 10px;              /* Padding for spacing */
+        transition: transform 0.2s; /* Smooth transition for hover effect */
+      }
+      
+      .three-d-effect:hover {
+        transform: translateY(-5px); /* Move the element up slightly on hover */
+        box-shadow: 3px 6px 8px rgba(0, 0, 0, 0.2);  /* More pronounced shadow on hover */
+      }
+      
+  }
