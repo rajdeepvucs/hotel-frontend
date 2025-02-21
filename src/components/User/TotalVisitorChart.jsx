@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Bar } from "react-chartjs-2";
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from "chart.js";
 import { baseURL } from "../../../config";
 import Header from "../common/Header";
@@ -16,7 +16,7 @@ const TotalVisitorChart = () => {
     // Fetch data from API
     const fetchData = async () => {
       try {
-        const response = await axios.get(`${baseURL}/api/getYearMonthWiseTotals`); // Replace with your API URL
+        const response = await apiClient.get(`${baseURL}/api/getYearMonthWiseTotals`); // Replace with your API URL
         setChartData(response.data);
       } catch (err) {
         console.error("Error fetching data:", err);

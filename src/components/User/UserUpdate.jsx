@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import { useForm } from "react-hook-form";
 import Header from "../common/Header";
 import { ToastContainer, toast } from 'react-toastify';
@@ -25,7 +25,7 @@ const UserUpdate = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await axios.get(`${baseURL}/api/user/getSingleUser/${user.id}`);
+        const response = await apiClient.get(`${baseURL}/api/user/getSingleUser/${user.id}`);
         const userData = response.data.user;
       
         // Populate form fields with existing user data
@@ -48,7 +48,7 @@ const UserUpdate = () => {
   // Handle form submission for updating user
   const onSubmit = async (data) => {
     try {
-      const response = await axios.post(`${baseURL}/api/user/updateUser/${user?.id}`, data);
+      const response = await apiClient.post(`${baseURL}/api/user/updateUser/${user?.id}`, data);
       toast.success(response.data.message || 'User updated successfully');
       setTimeout(() => {
         navigate('/user'); // Navigate back to user list or another page after update

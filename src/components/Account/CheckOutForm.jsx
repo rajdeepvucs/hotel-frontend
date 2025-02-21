@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import { useLocation } from "react-router-dom";
 import Header from "../common/Header";
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { baseURL } from "../../../config";
@@ -24,7 +24,7 @@ const CheckOutForm = () => {
   const [amountPaid, setAmountPaid] = useState(0);
   const location = useLocation();
   const { book } = location.state || {};
-  // console.log("book", book);
+
   const navigate = useNavigate();
   const handlePaymentModeChange = (event) => {
     setPaymentMode(event.target.value);
@@ -50,7 +50,7 @@ const CheckOutForm = () => {
     };
 
     try {
-      const response = await axios.post(`${baseURL}/api/booking/checkout/${book.bookingId}`, { formData });
+      const response = await apiClient.post(`${baseURL}/api/booking/checkout/${book.bookingId}`, { formData });
       if (response.status === 200) {
         toast.success("Booking status updated successfully!");
         navigate("/bill", {

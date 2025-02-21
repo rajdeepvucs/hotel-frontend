@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import { baseURL } from "../../../config";
 
 const RevenueCollectionModeChart = () => {
@@ -9,37 +9,37 @@ const RevenueCollectionModeChart = () => {
   const [paymentModes, setPaymentModes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const data= {
-    "success": true,
-    "data": [
-      {
-        "month": "2024-12",
-        "paymentModes": [
-          { "paymentMode": "cash", "totalCollected": 33535 },
-          { "paymentMode": "credit card", "totalCollected": 20000 },
-          { "paymentMode": "upi", "totalCollected": 15000 }
-        ]
-      },
-      {
-        "month": "2024-11",
-        "paymentModes": [
-          { "paymentMode": "cash", "totalCollected": 15000 },
-          { "paymentMode": "upi", "totalCollected": 10000 },
-          { "paymentMode": "credit card", "totalCollected": 18000 }
-        ]
-      }
-    ]
-  }
+  // const data= {
+  //   "success": true,
+  //   "data": [
+  //     {
+  //       "month": "2024-12",
+  //       "paymentModes": [
+  //         { "paymentMode": "cash", "totalCollected": 33535 },
+  //         { "paymentMode": "credit card", "totalCollected": 20000 },
+  //         { "paymentMode": "upi", "totalCollected": 15000 }
+  //       ]
+  //     },
+  //     {
+  //       "month": "2024-11",
+  //       "paymentModes": [
+  //         { "paymentMode": "cash", "totalCollected": 15000 },
+  //         { "paymentMode": "upi", "totalCollected": 10000 },
+  //         { "paymentMode": "credit card", "totalCollected": 18000 }
+  //       ]
+  //     }
+  //   ]
+  // }
   // Fetch data from the API
   useEffect(() => {
     const fetchData = async () => {
       try {
-       // const response = await axios.get(`${baseURL}/api/monthly_collections_mode`); // Replace with your actual API endpoint
+        const response = await apiClient.get(`${baseURL}/api/monthly_collections_mode`); // Replace with your actual API endpoint
 
         const transformedData = [];
         const uniquePaymentModes = new Set();
 
-        data.data.forEach((item) => {
+        response.data.data.forEach((item) => {
           const monthData = { month: item.month };
           item.paymentModes.forEach((mode) => {
             monthData[mode.paymentMode] = mode.totalCollected;

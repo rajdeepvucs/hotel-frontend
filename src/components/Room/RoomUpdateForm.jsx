@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { baseURL } from "../../../config";
 import { useDropzone } from "react-dropzone";
 import Header from "../common/Header";
-
+import apiClient from '../../api/apiClient';
 const RoomUpdateForm = () => {
   const location = useLocation();
   const roomId = location.state?.roomNo;
@@ -56,22 +56,34 @@ const RoomUpdateForm = () => {
   useEffect(() => {
     const fetchRoomData = async () => {
       try {
-        const response = await axios.get(`${baseURL}/api/room/getRoom/${roomId}`);
+        const response = await apiClient.get(`${baseURL}/api/room/getRoom/${roomId}`);
         const roomData = response.data.room;
 
         // Set the form fields with the fetched room data
         setValue("roomName", roomData.roomName);
-        setValue("roomPrice", roomData.roomPrice);
+          setValue("roomPrice", roomData.roomPrice);
         setValue("roomCapacity", roomData.roomCapacity);
         setValue("roomType", roomData.roomType);
-        setValue("features.wifi", roomData.features.wifi);
-        setValue("features.ac", roomData.features.ac);
-        setValue("features.tv", roomData.features.tv);
-        setValue("features.breakfast", roomData.features.breakfast);
-        setValue("features.parking", roomData.features.parking);
+          // Set features based on data
+          setValue("features.wifi", roomData.features.wifi);
+          setValue("features.ac", roomData.features.ac);
+          setValue("features.tv", roomData.features.tv);
+          setValue("features.breakfast", roomData.features.breakfast);
+          setValue("features.parking", roomData.features.parking);
         setValue("status", roomData.status);
 
-        // Parse and set existing images for the room
+          // Set room prices if they exist
+          if(roomData.roomPrices){
+              setValue("roomPrice", roomData.roomPrices.basic);
+                setValue("roomPriceWithBreakfast", roomData.roomPrices.withBreakfast);
+                setValue("roomPriceWithBreakFastLunch", roomData.roomPrices.withBreakfastAndLunch);
+              setValue("roomPriceWithAllMeals", roomData.roomPrices.withAllMeals);
+              setValue("roomPriceWithOnlyLunch", roomData.roomPrices.withOnlyLunch);
+              setValue("roomPriceWithDinner", roomData.roomPrices.withDinner);
+
+          }
+
+          // Parse and set existing images for the room
         if (roomData.images && roomData.images.length > 0) {
           const parsedImages = JSON.parse(roomData.images); // Parse the image string into an array
           const imagePaths = parsedImages.map((img) => ({
@@ -93,21 +105,30 @@ const RoomUpdateForm = () => {
   try {
     const formData = new FormData();
 
-    // Append form fields
-    formData.append("roomName", data.roomName);
-    formData.append("roomPrice", data.roomPrice);
+      // Append form fields
+        const formattedRoomName = data.roomName.padStart(3, "0");
+        formData.append("roomName", formattedRoomName);
+        formData.append("roomPrice", data.roomPrice);
+    const roomPrices = {
+      basic: data.roomPrice || null,
+      withBreakfast: data.roomPriceWithBreakfast || null,
+      withBreakfastAndLunch: data.roomPriceWithBreakFastLunch || null,
+      withAllMeals: data.roomPriceWithAllMeals || null,
+      withOnlyLunch: data.roomPriceWithOnlyLunch || null,
+      withDinner: data.roomPriceWithDinner || null,
+    };
+    formData.append("roomPrices", JSON.stringify(roomPrices));
     formData.append("roomCapacity", data.roomCapacity);
     formData.append("roomType", data.roomType);
-
-    const features = {
+     const features = {
       wifi: data.features?.wifi || false,
       ac: data.features?.ac || false,
       tv: data.features?.tv || false,
       breakfast: data.features?.breakfast || false,
       parking: data.features?.parking || false,
     };
-
     formData.append("features", JSON.stringify(features));
+    
 
     // Handle existing images
     const existingImages = uploadedImages
@@ -129,7 +150,7 @@ for (let [key, value] of formData.entries()) {
   console.log(`${key}:`, value);
 }
     // Update room data
-    const response = await axios.put(`${baseURL}/api/room/updateRoom/${roomId}`, formData, {
+    const response = await apiClient.put(`${baseURL}/api/room/updateRoom/${roomId}`, formData, {
       headers: {
         "Content-Type": "multipart/form-data",
       },
@@ -151,7 +172,7 @@ for (let [key, value] of formData.entries()) {
         <h2 className="text-2xl font-bold mb-4 text-center">Update Room Information</h2>
         <form onSubmit={handleSubmit(onSubmit)}>
           {/* Room Name */}
-          <div className="mb-4">
+           <div className="mb-4">
             <label className="block text-gray-700">Room Name:</label>
             <input
               type="text"
@@ -161,16 +182,26 @@ for (let [key, value] of formData.entries()) {
             {errors.roomName && <p className="text-red-500">{errors.roomName.message}</p>}
           </div>
 
-          {/* Room Price */}
-          <div className="mb-4">
-            <label className="block text-gray-700">Room Price (per night):</label>
-            <input
-              type="number"
-              {...register("roomPrice", { required: "Room Price is required" })}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {errors.roomPrice && <p className="text-red-500">{errors.roomPrice.message}</p>}
-          </div>
+           {/* Room Prices */}
+          {[
+            { label: "Basic Room Price", name: "roomPrice", required: true },
+             { label: "Price with Breakfast", name: "roomPriceWithBreakfast" },
+            { label: "Price with BreakFast and Lunch", name: "roomPriceWithBreakFastLunch" },
+            { label: "Price with All Meals", name: "roomPriceWithAllMeals" },
+            { label: "Price with Only Lunch", name: "roomPriceWithOnlyLunch" },
+            { label: "Price with Dinner", name: "roomPriceWithDinner" },
+          ].map(({ label, name, required }) => (
+            <div key={name} className="mb-4">
+              <label className="block text-gray-700">{label}:</label>
+              <input
+                type="number"
+                  {...register(name, required ? { required: `${label} is required` } : {})}
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {errors[name] && <p className="text-red-500">{errors[name].message}</p>}
+            </div>
+          ))}
+
 
           {/* Room Capacity */}
           <div className="mb-4">
@@ -195,7 +226,7 @@ for (let [key, value] of formData.entries()) {
               <option value="Double">Double</option>
               <option value="Suite">Suite</option>
               <option value="Deluxe">Deluxe</option>
-              <option value="Dormitory">Dormitory</option>
+                <option value="Dormitory">Dormitory</option>
             </select>
             {errors.roomType && <p className="text-red-500">{errors.roomType.message}</p>}
           </div>
@@ -259,19 +290,19 @@ for (let [key, value] of formData.entries()) {
                 <input
                   type="radio"
                   value="true"
-                  {...register("status", { required: "Room status is required" })}
+                   {...register("status", { required: "Room status is required" })}
                   checked={String(watch("status")) === "true"}
-                  onChange={() => setValue("status", true)}
+                   onChange={() => setValue("status", true)}
                   className="mr-2"
                 />
                 Available
               </label>
               <label className="flex items-center">
                 <input
-                  type="radio"
+                   type="radio"
                   value="false"
-                  {...register("status", { required: "Room status is required" })}
-                  checked={String(watch("status")) === "false"}
+                   {...register("status", { required: "Room status is required" })}
+                   checked={String(watch("status")) === "false"}
                   onChange={() => setValue("status", false)}
                   className="mr-2"
                 />

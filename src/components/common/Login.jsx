@@ -1,29 +1,34 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import axios from 'axios';
+import axios from "axios"
 import { useNavigate } from 'react-router-dom';
 import { baseURL } from '../../../config';
 import { jwtDecode } from "jwt-decode";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import Cookies from 'js-cookie';
 const Login = () => {
   const { register, handleSubmit, formState: { errors } } = useForm();
   const navigate = useNavigate();
 
   const onSubmit = async (data) => {
     try {
-      console.log(data);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // console.log(data);
+      // localStorage.setItem('user', JSON.stringify(data.user));
    
-      const response = await axios.post(`${baseURL}/api/user/login`, data);
+      const response = await axios.post(`${baseURL}/api/user/login`, data,{
+        withCredentials: true
+    });
       console.log('Login successful:', response.data);
+      Cookies.set('token', response.data.token, { expires: 7 }); 
       // Store user and role in local storage
-   
+      
       const decoded = jwtDecode(response.data.token);
       
    
       localStorage.setItem('role', decoded.role);
       localStorage.setItem('user', decoded.name);
+      localStorage.setItem('propertyId', decoded.propertyId);
       if(decoded.role==='admin')
       {navigate('/admindashboard');}
       

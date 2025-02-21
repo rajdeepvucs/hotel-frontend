@@ -5,7 +5,9 @@ import { motion } from 'framer-motion';
 import axios from "axios";
 import { baseURL } from '../../../config';
 import { useNavigate } from "react-router-dom";
-
+import apiClient from '../../api/apiClient';
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 const SlideDown = (delay) => {
   return {
     initial: {
@@ -30,7 +32,7 @@ function RoomCreate() {
   useEffect(() => {
     const fetchRooms = async () => {
       try {
-        const response = await axios.get(`${baseURL}/api/room/getRooms`);
+        const response = await apiClient.get(`${baseURL}/api/room/getRooms`);
         setRooms(response.data);
       } catch (error) {
         console.error("Error fetching rooms:", error);
@@ -42,8 +44,8 @@ function RoomCreate() {
   }, []);
   const fetchRoom = async () => {
     try {
-      const response = await axios.get(`${baseURL}/api/property/getrooms`);
-      const count = response.data.roomCount[0]?.number_of_rooms || 0;
+      const response = await apiClient.get(`${baseURL}/api/property/getrooms`);
+      const count = response.data.roomCount[0]?.rooms || 0;
       setRoomCount(count);
     } catch (error) {
       console.error("Error fetching room count:", error);

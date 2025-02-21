@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../common/Header";
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import RoomStatusTable from "../common/RoomStatusTable";
@@ -10,7 +10,8 @@ import { baseURL } from "../../../config";
 function ExtendedDate() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { boarders, room } = location.state || {};
+  const { boarders } = location.state || {};
+  //console.log("room...",room)
 
   const [checkOutDate, setCheckOutDate] = useState("");
   const [error, setError] = useState("");
@@ -66,7 +67,7 @@ function ExtendedDate() {
     console.log("Payload:", payload);
 
     try {
-      const response = await axios.post(`${baseURL}/api/booking/extend_booking`, payload);
+      const response = await apiClient.post(`${baseURL}/api/booking/extend_booking`, payload);
       console.log("Response:", response.data);
 
       if (response.status === 200) {

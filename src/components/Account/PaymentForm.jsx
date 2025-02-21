@@ -7,6 +7,7 @@ import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Header from "../common/Header";
 import { motion } from "framer-motion";
+import apiClient from "../../api/apiClient";
 
 const PaymentForm = () => {
   const location = useLocation();
@@ -28,7 +29,7 @@ const PaymentForm = () => {
     const payPayment = async () => {
       setLoading(true); // Start loading
       try {
-        const response = await axios.get(
+        const response = await apiClient.get(
           `${baseURL}/api/account/getParticularBookingDetails/${bookingId}`
         );
         setData(response.data); // Assuming API returns an array of payment types
@@ -59,15 +60,15 @@ const PaymentForm = () => {
       balenceAmount: data?.balance - formData?.amountPaid,
       createdBy: localStorage.getItem("user"),
       paymentTime: getLocalTime(),
-      description: "Pay",
+      description: "Pay After Checkin",
     };
 
     console.log("Updated Form Data:", updatedFormData);
 
     try {
       // Make the API call with the updated form data
-      const response = await axios.post(
-        `${baseURL}/api/account/create`,
+      const response = await apiClient.post(
+        `${baseURL}/api/account/addDatas`,
         updatedFormData
       );
 
@@ -111,7 +112,7 @@ title= "Payment"
             <div className="mb-4">
               <label className="block text-white">BookingId:</label>
               <input
-                type="number"
+                type="text"
                 name="amount"
                 defaultValue={data?.bookingId}
                 readOnly

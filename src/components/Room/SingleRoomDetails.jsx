@@ -5,7 +5,7 @@ import Header from "../common/Header";
 import { useLocation } from "react-router-dom";
 import { baseURL } from "../../../config";
 import Imagedetail from "./Imagedetail";
-
+import apiClient from '../../api/apiClient';
 
 
 const SingleRoomDetails = () => {
@@ -17,29 +17,29 @@ const SingleRoomDetails = () => {
   const location = useLocation();
   const roomId = location.state?.roomNo;
   const [roomImages, setRoomImages] = React.useState([]);
-
+  const [roomPrices, setRoomPrices] = useState({});
   const {
     register,
     setValue,
     watch,
     formState: { errors },
   } = useForm();
-
+const [roomData,setRoomData]=useState();
   // Fetch room data when component loads
   useEffect(() => {
     const fetchRoomData = async () => {
       try {
-        const response = await axios.get(`${baseURL}/api/room/getRoom/${roomId}`);
-        const roomData = response.data.room;
-        console.log("roomData", roomData);
+        const response = await apiClient.get(`${baseURL}/api/room/getRoom/${roomId}`);
+     setRoomData( response.data.room);
+        console.log("roomData", response.data.room);
         
         // Correct the image parsing to handle empty array or invalid data
         let parsedImages = [];
 
 try {
-  if (roomData.images && roomData.images !== "[]") {
+  if (response.data.room?.images && response.data.room?.images !== "[]") {
     // Parse the JSON string safely
-    const rawImages = typeof roomData.images === "string" ? JSON.parse(roomData.images) : roomData.images;
+    const rawImages = typeof response.data.room?.images === "string" ? JSON.parse(response.data.room?.images) : response.data.room?.images;
 
     // If rawImages is a string (indicating it's still encoded), parse it again
     const decodedImages = typeof rawImages === "string" ? JSON.parse(rawImages) : rawImages;
@@ -58,16 +58,18 @@ try {
         setRoomImages(parsedImages);
         
         // Set the form fields with the fetched room data
-        setValue("roomName", roomData.roomName);
-        setValue("roomPrice", roomData.roomPrice);
-        setValue("roomCapacity", roomData.roomCapacity);
-        setValue("roomType", roomData.roomType);
-        setValue("features.wifi", roomData.features.wifi);
-        setValue("features.ac", roomData.features.ac);
-        setValue("features.tv", roomData.features.tv);
-        setValue("features.breakfast", roomData.features.breakfast);
-        setValue("features.parking", roomData.features.parking);
-        setValue("status", roomData.status); // Setting room status
+        setValue("roomName", response.data.room?.roomName);
+        setValue("roomPrice", response.data.room?.roomPrice);
+        setValue("roomCapacity", response.data.room?.roomCapacity);
+        setValue("roomType", response.data.room?.roomType);
+        // Dynamically set features
+        if (response.data.room?.features) {
+          Object.keys(response.data.room.features).forEach(featureKey => {
+            setValue(`features.${featureKey}`, response.data.room.features[featureKey]);
+          });
+        }
+        setValue("status", response.data.room?.status); // Setting room status
+        setRoomPrices(response.data.room?.roomPrices || {});
       } catch (error) {
         console.error("Error fetching room data:", error);
       }
@@ -128,7 +130,18 @@ try {
               disabled // Make input read-only
             />
           </div>
-
+{/* Room Prices */}
+<div className="mb-4">
+                <label className="block text-gray-700">Room Prices:</label>
+                <div>
+                  {Object.keys(roomPrices).map((key) => (
+                    <div key={key} className="flex justify-between mb-2">
+                      <span>{key.replace(/([A-Z])/g, ' $1').toUpperCase()}:</span>
+                      <span>{roomPrices[key]}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
           {/* Room Type Dropdown */}
           <div className="mb-4">
             <label className="block text-gray-700">Room Type:</label>
@@ -143,7 +156,7 @@ try {
 
         {/* Features (Checkboxes) */}
 {/* Features (Checkboxes) */}
-<div className="mb-6">
+{/* <div className="mb-6">
   <h3 className="block text-gray-700 font-semibold mb-2">Features:</h3>
   <div className="space-y-2">
     <label className="flex items-center">
@@ -195,6 +208,24 @@ try {
       />
       <span className="ml-2 text-gray-700">Free Parking</span>
     </label>
+  </div>
+</div> */}
+<div className="mb-6">
+  <h3 className="block text-gray-700 font-semibold mb-2">Features:</h3>
+  <div className="space-y-2">
+    {roomData?.features &&
+      Object.entries(roomData.features).map(([featureKey, featureValue]) => (
+        <label key={featureKey} className="flex items-center">
+          <input
+            type="checkbox"
+            {...register(`features.${featureKey}`)}
+            disabled
+            className="peer w-5 h-5 bg-gray-200 border-2 border-gray-300 rounded focus:ring-0 disabled:cursor-not-allowed checked:bg-[#006699] checked:border-[#004466]"
+            checked={featureValue} // Set checkbox state based on featureValue
+          />
+          <span className="ml-2 text-gray-700">{featureKey.replace(/([A-Z])/g, ' $1')}</span> {/* Display feature name */}
+        </label>
+      ))}
   </div>
 </div>
 
@@ -252,8 +283,7 @@ try {
         </div>
       </div>
       {/* Modal */}
-     {open && <Imagedetail getImage={getImage} handleClose={() => setOpen(false)} />
-}
+     {open && <Imagedetail getImage={getImage} handleClose={() => setOpen(false)} />}
       </main>
     </div>
   );

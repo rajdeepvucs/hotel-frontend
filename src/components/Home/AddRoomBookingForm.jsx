@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect,useContext } from "react";
 import Header from "../common/Header";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
+import apiClient from "../../api/apiClient";
 import axios from "axios";
 import Select from "react-select";
 import { ToastContainer, toast } from "react-toastify";
@@ -10,6 +11,8 @@ import { baseURL } from "../../../config";
 import { v4 as uuidv4 } from "uuid";
 import SpecificRange from "./SpecificRange";
 import { format } from "date-fns";
+import uuid from "react-uuid";
+import GstContext from "../Context/Gst/GstContext";
 function AddRoomBookingForm() {
   const states = [
     "Andhra Pradesh",
@@ -53,10 +56,24 @@ function AddRoomBookingForm() {
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState("");
   const [nights,setNights]=useState(0);
+  const [referrPerson,setReferrPerson]=useState("");
   const [showFilteredData, setShowFilteredData] = useState(false);
+  const [roomType, setRoomType] = useState();
+  const { gstRate } = useContext(GstContext);
+   const [isModalOpen, setIsModalOpen] = useState(false);
   const handleStateChange = (e) => {
     setSelectedState(e.target.value);
     setValue("state", e.target.value); // Update react-hook-form state
+  };
+  const validateCheckOutDate = (value) => {
+    const today = new Date().toISOString().split("T")[0];
+     if (!startDate) {
+      return "Check-In Date is required before selecting Check-Out Date";
+    }
+    if(value < startDate){
+      return "Check-Out Date must be greater than or equal to Check-In Date";
+    }
+    return value >= today || "Check-Out Date must be today or a future date";
   };
   const {
     register,
@@ -78,6 +95,7 @@ function AddRoomBookingForm() {
           checkOutTime: "10.00",
           night: "",
           roomNo: "",
+          roomType:"",
           no_of_adults: "",
           no_of_child: "",
           roomTariff: "",
@@ -117,7 +135,7 @@ function AddRoomBookingForm() {
       if (data[0].Status === 'Success') {
         const postOffice = data[0].PostOffice[0];
         const fetchedState = postOffice.State;
-console.log("state",fetchedState)
+
         setSelectedState(fetchedState);
        
       } 
@@ -129,8 +147,20 @@ console.log("state",fetchedState)
   };
   useEffect(()=>{fetchStateName()},[pincode])
 
-
-
+  const handleRoomTypeChange = (e) => {
+    setRoomType(e.target.value);
+  };
+  const options = [
+    { value: 'room_only', label: 'Room Only', tariff: '0' },
+    { value: 'room_with_breakfast', label: 'Room with Breakfast', tariff: '200' },
+  ];
+  const selectedOption = watch('room_type', ''); // Watch the dynamically named field
+  const[meal,setMeal]=useState(0);//meal charge
+  const handleSelectChange = (value) => {
+    const selected = options.find((option) => option.value === value);
+    // Correctly update the dynamically named tariff field
+    setMeal( selected ? selected.tariff : '');
+  };
 
   const handleShowData = () => {
     if (startDate && endDate && noOfAdults && no_of_room) {
@@ -152,8 +182,8 @@ console.log("state",fetchedState)
   const [advamount, setAdvAmount] = useState(0);
   const [tnx_id, setTnx_id] = useState(null);
   const [gstColl, setGstColl] = useState(0);
-  const [paymentMode, setPaymentMode] = useState("");
-  const gst = 18;
+  const [paymentMode, setPaymentMode] = useState("Cash");
+  const [gst,setGst] = useState(0);
   const [checkboxState, setCheckboxState] = useState([]);
   const [totalAmt, setTotalAmt] = useState(0);
   const [showForm, setShowForm] = useState(false);
@@ -163,23 +193,35 @@ console.log("state",fetchedState)
     setNoOfAdults(parseInt(e.target.value) || 0);
   const handleInputChangeChildren = (e) =>
     setNoOfChild(parseInt(e.target.value) || 0);
-  const handleStartDateChange = (e) => { 
-    const selectedDate = e.target.value; 
-    const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format 
-    if (selectedDate >= today) { setStartDate(selectedDate); } 
-    else {
-       alert("The start date cannot be earlier than today's date."); 
-      } 
+  const handleStartDateChange = (e) => {
+    const selectedDate = e.target.value;
+    const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+
+    if (selectedDate >= today) {
+      if (endDate && selectedDate > endDate) {
+        alert("Start date cannot be later than end date.");
+        setStartDate(""); // Reset the start date
+      } else {
+        setStartDate(selectedDate);
+      }
+    } else {
+      alert("The start date cannot be earlier than today's date.");
+      setStartDate(""); //Reset the start date
+    }
   };
-  // const handleEndDateChange = (e) => setEndDate(e.target.value);
+
   const handleEndDateChange = (e) => {
     const selectedEndDate = e.target.value;
     const today = new Date().setHours(0, 0, 0, 0); // Set time to 00:00:00 for accurate comparison
-  
+
     if (new Date(selectedEndDate).setHours(0, 0, 0, 0) < today) {
       alert("Check-out date must be today or a future date.");
       setEndDate(""); // Reset the check-out date field
-    } else {
+    } else if (startDate && selectedEndDate < startDate) {
+      alert("Check-out date cannot be earlier than check-in date.");
+      setEndDate(""); //Reset the check-out date field
+    }
+    else {
       setEndDate(selectedEndDate); // Update the end date if valid
     }
   };
@@ -270,15 +312,41 @@ console.log("state",fetchedState)
       setTotalAmount(totalTariff);
     }
   };
+  const calculateGST = () => {
+    const currentValues = getValues("member");
+    let totalGst = 0;
 
-  useEffect(() => {
-    if (totalAmount !== undefined && disamount !== undefined) {
-      const gst=(totalAmount - disamount) * 0.18
-      const totalRoomTariff = (totalAmount - disamount) + gst;
-      setTotalAmt(totalRoomTariff.toFixed(2));
-      setGstColl(gst.toFixed(2))
-    }
-  }, [totalAmount, disamount, setTotalAmt]);
+
+    currentValues.forEach((member) => {
+        const roomTariff = parseInt(member.roomTariff, 10) || 0;
+        const nights = parseInt(member.night, 10) || 0;
+        const gstPct= gstRate.find(gst =>
+          gst.GST_TYPE === 'ROOM' &&
+          roomTariff >= gst.GST_LOWER_RANGE &&
+          roomTariff <= gst.GST_HIGHER_RANGE
+        );
+      
+        setGst(gstPct?.GST_PCT)
+        // if (roomTariff > 7500) {
+        //     gstRate = 0.18;
+        //     setGst(18);
+        // } else {
+        //     gstRate = 0.12;
+        //     setGst(12);
+        // }
+        totalGst += (roomTariff * nights) * (gst/100);
+    });
+
+    setGstColl(totalGst.toFixed(2));
+};
+useEffect(() => {
+  if (totalAmount !== undefined && disamount !== undefined) {
+    calculateGST()
+    const totalRoomTariff = (totalAmount - disamount) + parseFloat(gstColl);
+    setTotalAmt(totalRoomTariff.toFixed(2));
+    
+  }
+}, [totalAmount, disamount, gstColl,calculateGST]);
 
   const handlePaymentModeChange = (e) => {
     const value = e.target.value;
@@ -298,41 +366,17 @@ console.log("state",fetchedState)
 
   const handleAdvAmountChange = (e) => {
     const value = parseInt(e.target.value) || 0;
+    if(value<=totalAmt)
+      {
     setAdvAmount(value);
     setValue("advamount", value);
+    }
+    else{
+      toast.error("Advance Amount can not greater than Total Amount")
+    }
   };
 
-  // const handleChildChange = (index, event) => {
-  //   const value = parseInt(event.target.value, 10) || 0;
-  //   const currentValues = getValues(`member`);
-  //   currentValues[index].no_of_child = value;
-
-  //   // Calculate total number of adults
-  //   const totalAdults = currentValues.reduce(
-  //     (sum, member) => sum + (parseInt(member.no_of_child, 10) || 0),
-  //     0
-  //   );
-  //   setNoOfChild(totalAdults);
-
-  //   // Update the form field
-  //   setValue(`member[${index}].no_of_child`, event.target.value);
-  // };
-  // const handleAdultChange = (index, event) => {
-  //   const value = parseInt(event.target.value, 10) || 0;
-  //   const currentValues = getValues(`member`);
-  //   currentValues[index].no_of_adults = value;
-
-  //   // Calculate total number of adults
-  //   const totalAdults = currentValues.reduce(
-  //     (sum, member) => sum + (parseInt(member.no_of_adults, 10) || 0),
-  //     0
-  //   );
-  //   setNoOfAdults(totalAdults);
-
-  //   // Update the form field
-  //   setValue(`member[${index}].no_of_adults`, event.target.value);
-  // };
-
+ 
   const handleRemove = (index) => {
     const currentValues = getValues("member");
 
@@ -363,6 +407,7 @@ console.log("state",fetchedState)
     checkOutTime: "09:00",
     night: calculateDefaultNights(),
     roomNo: "",
+    roomType:"",
     no_of_adults: "",
     no_of_child: "",
     roomTariff: "",
@@ -372,26 +417,31 @@ console.log("state",fetchedState)
 }, [no_of_room, setValue]);
 
   const checkOutDate = watch("checkOutDate");
-  //  const validateCheckOutDate = (value) => {
-  //   if (checkInDate && new Date(value) <= new Date(checkInDate))
-  //     { return "Check-Out Date must be later than Check-In Date"; }
-  //    return true;
-  //  }
-  const validateCheckOutDate = (value) => {
-    const today = new Date().toISOString().split("T")[0];
-    return value >= today || "Check-Out Date must be today or a future date";
-  };
+
+
   function generateBookingId() {
-    // Get the current timestamp in milliseconds
-    const timestamp = Date.now(); // Returns the number of milliseconds since January 1, 1970
-    return timestamp;
+   
+
+    const propName = localStorage.getItem('propertyId').replace(/\s+/g, '');
+    const userName = localStorage.getItem("user").replace(/\s+/g, '');
+    const propertyPrefix = propName.substring(0, 3).toUpperCase();
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const timeString = `${hours}${minutes}`; // Format as HHMM
+    const milliseconds = date.getMilliseconds().toString().padStart(2, '0');
+    const bookingId = `${propertyPrefix}${userName.substring(0, 3).toUpperCase()}${year}${timeString}${milliseconds}`;
+
+    return bookingId;
+
   }
   useEffect(() => {
     const id = generateBookingId();
     setBookingId(id);
     const fetchRooms = async () => {
       try {
-        const response = await axios.get(`${baseURL}/api/room/allRooms`); // Update this URL based on your API route
+        const response = await apiClient.get(`${baseURL}/api/room/allRooms`); // Update this URL based on your API route
 
         const formattedRooms = response.data.rooms.map((room) => ({
           value: room.value,
@@ -410,6 +460,7 @@ console.log("state",fetchedState)
   const filteredRooms = rooms.filter((room) =>
     checkboxState.includes(room.value)
   );
+
   const calculateDefaultNights=()=>{
     const calculatedNights =
         startDate && endDate
@@ -422,31 +473,24 @@ console.log("state",fetchedState)
   }
   useEffect(() => {
     fields.forEach((_, index) => {
-      // Calculate the number of nights
-      // const calculatedNights =
-      //   startDate && endDate
-      //     ? Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))
-      //     : 0;
-      
-      // // Ensure nights is at least 1
-      // const nights = calculatedNights === 0 ? 1 : calculatedNights;
-      
-      // Set the check-in and check-out dates
-      // setValue(`member[${index}].checkInDate`, startDate);
-      // setValue(`member[${index}].checkOutDate`, endDate);
-  
-      // Set the number of nights
-      // setValue(`member[${index}].night`, nights);
-  
       // Set the room number
       setValue(`member[${index}].roomNo`, filteredRooms[index]?.value);
-  
+
       // Extract and set the tariff
-      const tariff = filteredRooms[index]?.label.split(" ").pop();
-      setValue(`member[${index}].acroomTariff`, tariff || "");
+      const label = filteredRooms[index]?.label; // Get the full label
+      if (label) {
+        const parts = label.split(" "); // Split the label by spaces
+        const roomType = parts.length > 1 ? parts.slice(1, -1).join(" ") : ""; // Extract the room type (excluding the first and last part)
+        const tariff = parts[parts.length - 1] //take tariff part
+        setValue(`member[${index}].acroomTariff`, tariff || "");
+        setValue(`member[${index}].roomType`, roomType || ""); // Set roomType in the form
+
+      } else {
+        setValue(`member[${index}].roomType`, ""); // Clear if no label
+      }
     });
   }, [fields, setValue, filteredRooms]);
-  
+
 
   const onSubmit = async (data) => {
     const formData = new FormData();
@@ -454,11 +498,23 @@ console.log("state",fetchedState)
     const formattedDate = format(new Date(currentDateTime), "hh:mm a");
     // Append simple form fields
     formData.append("bookingId", bookingId);
-    formData.append("fname", `${data.fname} ${data.mname}`);
-    formData.append("lname", data.lname);
+    formData.append("fname", `${data.fname.toUpperCase()} ${data.mname.toUpperCase()}`);
+    formData.append("lname", data.lname.toUpperCase());
     formData.append(
       "address",
-      `${data.address1} ${data.address2} ${pincode} ${selectedState}  ${showCountry}`
+      `${data.address1.toUpperCase()} ${data.address2.toUpperCase()} ${pincode} ${selectedState.toUpperCase()}  ${showCountry.toUpperCase()}`
+    );
+    formData.append(
+      "pin",
+      ` ${pincode}`
+    );
+    formData.append(
+      "state",
+      ` ${selectedState.toUpperCase()}`
+    );
+    formData.append(
+      "country",
+      `${showCountry.toUpperCase()}`
     );
     formData.append("age", data.age);
     formData.append("email", data.email);
@@ -474,6 +530,7 @@ console.log("state",fetchedState)
     formData.append("no_of_minor", noOfChild);
     formData.append("totalAmt", totalAmt);
     formData.append("bookingTime", formattedDate);
+    formData.append("referredPerson", referrPerson);
     formData.append("createdBy", localStorage.getItem("user"));
 
     // Append member data fields
@@ -483,6 +540,7 @@ console.log("state",fetchedState)
       formData.append(`member[${index}].checkOutTime`, member.checkOutTime);
       formData.append(`member[${index}].checkInTime`, member.checkInTime);
       formData.append(`member[${index}].roomNo`, member.roomNo);
+      formData.append(`member[${index}].roomType`, member.roomType);
       formData.append(`member[${index}].no_of_adults`, member.no_of_adults);
       formData.append(`member[${index}].no_of_child`, member.no_of_child);
       formData.append(`member[${index}].roomTariff`, member.roomTariff);
@@ -496,7 +554,7 @@ console.log("state",fetchedState)
 
     // Submit the formData to the server
     try {
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${baseURL}/api/booking/createbooking`,
         formData,
         {
@@ -512,11 +570,12 @@ console.log("state",fetchedState)
           );
         }, 1000);
         reset();
-        navigate("/advanceboaderlist");
+        navigate("/bookingconfirmation", { state: { bookingId } });
+       // navigate("/advanceboaderlist");
       }
     } catch (error) {
       console.error("Error uploading data:", error);
-    
+  
       // Check if the error response contains the required fields
       if (error.response && error.response.data) {
         const { error: errorMessage, unavailableRooms } = error.response.data;
@@ -611,8 +670,24 @@ console.log("state",fetchedState)
                     min="0"
                   />
                 </div>
-          
+                <div className="flex flex-col space-y-1 mb-4">
+      <label className="block text-gray-700">Room Type:</label>
+      <select
+        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+        value={roomType}
+        onChange={handleRoomTypeChange}
+      >
+        <option value="">Select Room Type</option>
+        <option value="Single">Single</option>
+        <option value="Double">Double</option>
+        <option value="Suite">Suite</option>
+        <option value="Deluxe">Deluxe</option>
+        <option value="Dormitory">Dormitory</option>
+      </select>
+    </div>
               </div>
+              
+            
                     {/* Button to Show Filtered Data */}
                     <div className="flex justify-center items-center">
                     <button
@@ -632,6 +707,7 @@ console.log("state",fetchedState)
                   endDate={endDate}
                   checkboxState={checkboxState}
                   setCheckboxState={setCheckboxState}
+                  roomType={roomType}
              
                 />
                 <div className="flex justify-center items-center  mt-2">
@@ -652,12 +728,37 @@ console.log("state",fetchedState)
             )}
           </>
         )}
+      
         {showForm && (
           <div className="flex flex-col justify-center items-center ">
             <form
               onSubmit={handleSubmit(onSubmit)}
               className="border border-gray-300 p-6 rounded-md shadow-md bg-white min-w-[1024px]"
             >
+                 <button
+        type="button"
+        onClick={() => {
+          setShowForm(false);
+          setShowCheckDiv(true);
+        }}
+        className="absolute  top-[140px] right-9  bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-1 px-2 rounded inline-flex items-center transform translate-y-1"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          strokeWidth="1.5"
+          stroke="currentColor"
+          className="w-4 h-4 mr-1"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
+          />
+        </svg>
+        Back
+      </button>
               <div className="flex flex-row justify-between">
                 <div className="text-lg">BookingID: {bookingId}</div>
                 <div>
@@ -668,7 +769,7 @@ console.log("state",fetchedState)
                 <div className="flex w-3/5 flex-col gap-1  ">
                   {/* Customer info */}
                   <div className=" flex-grow h-full">
-                    <div className="border border-gray-300 rounded-md p-6 shadow-md relative mt-1">
+                    <div className="border border-gray-300 rounded-md p-6 shadow-md relative mt-1 h-[450px]">
                       <h2 className="absolute -top-3 left-5 bg-white px-2 text-lg font-semibold text-gray-700">
                         Customer's Info
                       </h2>
@@ -977,82 +1078,24 @@ console.log("state",fetchedState)
                             </p>
                           )}
                         </div>
+                        <div className="flex flex-col space-y-1 mb-2">
+                          <label htmlFor="pin" className="text-base">
+                           Referred By
+                          </label>
+                          <input
+                            id="pin"
+                            type="text"
+                            placeholder="Mr. Tapas Pal"
+                            onChange={(e)=>{setReferrPerson(e.target.value)}}
+                            className="border p-2 rounded-md w-full"
+                          />
+                         
+                        </div>
                       </div>
+                     
                     </div>
                   </div>
-                  {/* Payment Info */}
-                  <div className=" border border-gray-300 rounded-md p-6 shadow-md relative mt-4">
-                    <h2 className="absolute -top-3 left-5 bg-white px-2 text-lg font-semibold text-gray-700">
-                      Payment Info
-                    </h2>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="flex flex-col space-y-1 mb-2">
-                        <label htmlFor="advamount" className="text-base">
-                          Advance Amount
-                        </label>
-                        <input
-                          id="advamount"
-                          type="number"
-                          placeholder="Rs/-800"
-                          {...register("advamount")}
-                          value={watch("advamount") || advamount}
-                          onChange={handleAdvAmountChange}
-                          className="border p-2 rounded-md w-full"
-                        />
-                      </div>
-                      <div className="flex flex-col space-y-1 mb-2">
-                        <label htmlFor="paymentmode" className="text-base">
-                          Payment Mode
-                        </label>
-                        <select
-                          id="paymentmode"
-                          {...register("paymentmode", {
-                            onBlur: () => trigger("paymentmode"),
-                          })}
-                          value={paymentMode}
-                          onChange={handlePaymentModeChange}
-                          className="border p-2 rounded-md w-full"
-                        >
-                          <option value="">Select Payment Mode</option>
-                          <option value="Online">Online</option>
-                          <option value="Card">Card</option>
-                          <option value="Cash">Cash</option>
-                        </select>
-                        {errors.paymentmode && (
-                          <p className="text-red-500 text-sm">
-                            {errors.paymentmode.message}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-col space-y-1 mb-2">
-                        <label htmlFor="tnx_id" className="text-base">
-                          Transaction ID
-                        </label>
-                        <input
-                          id="tnx_id"
-                          placeholder="tnx12334"
-                          {...register("tnx_id")}
-                          value={watch("tnx_id") || tnx_id}
-                          onChange={handleTnxId}
-                          className="border p-2 rounded-md w-full"
-                        />
-                      </div>
-                      <div className="flex flex-col space-y-1 mb-2">
-                        <label htmlFor="disamount" className="text-base">
-                          Discount Amount
-                        </label>
-                        <input
-                          id="disamount"
-                          type="number"
-                          placeholder="Rs/-800"
-                          {...register("disamount")}
-                          value={watch("disamount") || disamount}
-                          onChange={handleDisAmountChange}
-                          className="border p-2 rounded-md w-full"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                 
                 </div>
                 {/* Billing Info */}
                 <div className="w-2/5 flex-grow h-full">
@@ -1096,12 +1139,20 @@ console.log("state",fetchedState)
                     <div className="flex flex-row justify-between items-center p-2">
                       <span className="text-sm text-gray-700">Discount:</span>
                       <span className="text-sm text-gray-900 font-medium">
-                        {disamount}
+                        <input
+                          id="disamount"
+                          type="number"
+                          placeholder="Rs/-800"
+                          {...register("disamount")}
+                          value={watch("disamount") || disamount}
+                          onChange={handleDisAmountChange}
+                          className="border p-2 rounded-md w-full"
+                        />
                       </span>
                     </div>
                     <div className="flex flex-row justify-between items-center p-2">
                       <span className="text-sm text-gray-700">GST:</span>
-                      <span className="text-sm text-gray-700"> {18}%</span>
+                      
                       <span className="text-sm text-gray-900 font-medium">
                        {gstColl}
                       </span>
@@ -1120,7 +1171,15 @@ console.log("state",fetchedState)
                         Advance Amount:
                       </span>
                       <span className="text-sm text-gray-900 font-medium">
-                        {advamount}
+                      <input
+                          id="advamount"
+                          type="number"
+                          placeholder="Rs/-800"
+                          {...register("advamount")}
+                          value={watch("advamount") || advamount}
+                          onChange={handleAdvAmountChange}
+                          className="border p-2 rounded-md w-full"
+                        />
                       </span>
                     </div>
                     <div className="flex flex-row justify-between items-center p-2">
@@ -1131,7 +1190,7 @@ console.log("state",fetchedState)
                         {(totalAmt - advamount).toFixed(2)}
                       </span>
                     </div>
-                    <div className="flex flex-row justify-between items-center gap-2 p-2">
+                    {/* <div className="flex flex-row justify-between items-center gap-2 p-2">
                       <span className="text-sm text-gray-700">Promo Code:</span>
                       <div className="flex items-center">
                         <input
@@ -1146,17 +1205,40 @@ console.log("state",fetchedState)
                           Apply{" "}
                         </button>
                       </div>
-                    </div>
+                    </div> */}
                     <div className="flex flex-row justify-between items-center p-2">
-                      <span className="text-sm text-gray-700">
-                        PaymentMode:
-                      </span>
+                    <span className="text-sm text-gray-700">Payment Mode</span>
                       <span className="text-sm text-gray-900 font-medium">
-                        {paymentMode}
+                      <select
+                          id="paymentmode"
+                          {...register("paymentmode", {
+                            onBlur: () => trigger("paymentmode"),
+                          })}
+                          value={paymentMode}
+                          onChange={handlePaymentModeChange}
+                          className="border p-2 rounded-md w-full"
+                        >
+                          <option value="">Select Payment Mode</option>
+                          <option value="Online">Online</option>
+                          <option value="Card">Card</option>
+                          <option value="Cash">Cash</option>
+                        </select>
+                        {errors.paymentmode && (
+                          <p className="text-red-500 text-sm">
+                            {errors.paymentmode.message}
+                          </p>
+                        )}
                       </span>
                       <span className="text-sm text-gray-700">TnxId:</span>
                       <span className="text-sm text-gray-900 font-medium">
-                        {tnx_id}
+                      <input
+                          id="tnx_id"
+                          placeholder="tnx12334"
+                          {...register("tnx_id")}
+                          value={watch("tnx_id") || tnx_id}
+                          onChange={handleTnxId}
+                          className="border p-2 rounded-md w-full"
+                        />
                       </span>
                     </div>
                   </div>
@@ -1218,7 +1300,7 @@ console.log("state",fetchedState)
                         )}
                     </div>
 
-                    <div className="flex flex-col space-y-1 mb-2">
+                    {/* <div className="flex flex-col space-y-1 mb-2">
                       <label
                         htmlFor={`member[${index}].checkInTime`}
                         className="text-xs font-bold"
@@ -1246,7 +1328,7 @@ console.log("state",fetchedState)
                             {errors.member[index].checkInTime.message}
                           </p>
                         )}
-                    </div>
+                    </div> */}
 
                     <div className="flex flex-col space-y-1 mb-2">
                       <label
@@ -1277,7 +1359,7 @@ console.log("state",fetchedState)
                           </p>
                         )}
                     </div>
-                    <div className="flex flex-col space-y-1 mb-2">
+                    {/* <div className="flex flex-col space-y-1 mb-2">
                       <label
                         htmlFor={`member[${index}].checkOutTime`}
                         className="text-xs font-bold"
@@ -1304,7 +1386,7 @@ console.log("state",fetchedState)
                             {errors.member[index].checkOutTime.message}
                           </p>
                         )}
-                    </div>
+                    </div> */}
                     <div className="flex flex-col space-y-1 mb-2">
                       <label
                         htmlFor={`member[${index}].night`}
@@ -1343,6 +1425,61 @@ console.log("state",fetchedState)
                     })}
                     className="border p-2 rounded-md w-full"
                     defaultValue={getValues(`room[${index}].roomNo`)}
+                  />
+                      {/* <select
+                        {...register(`member[${index}].roomNo`, {
+                          required: "Room no is required",
+                          onChange: (e) => {
+                            // Find the selected room
+                            const selectedRoom = filteredRooms.find(
+                              (room) => room.value === e.target.value
+                            );
+                    
+                            // Extract the tariff from the label (last part after split by space)
+                            const tariff = selectedRoom ? selectedRoom.label.split(" ").pop() : "";
+                    
+                            // Set the extracted tariff value
+                            setValue(`member[${index}].acroomTariff`, tariff || "");
+                          },
+                          onBlur: () => {
+                            setSelectedIndex(index + 1);
+                            trigger(`member[${index}].roomNo`);
+                          },
+                        })}
+                       
+                        className="border p-2 rounded-md w-full"
+                        
+                      >
+                        <option value="">Select Room</option>
+                        {filteredRooms.map((room) => (
+                          <option key={room.value} value={room.value}>
+                            {room.label}
+                          </option>
+                        ))}
+                      </select> */}
+                      {errors.member &&
+                        errors.member[index] &&
+                        errors.member[index].roomNo && (
+                          <p className="text-red-500 text-sm">
+                            {errors.member[index].roomNo.message}
+                          </p>
+                        )}
+                    </div>
+                    <div className="flex flex-col space-y-1 mb-2">
+                      <label
+                        htmlFor={`member[${index}].roomNo`}
+                        className="text-xs font-bold"
+                      >
+                        Room Type<span className="text-red-500">*</span>
+                      </label>
+                      <input
+                    id={`room[${index}].roomNo`}
+                    type="text"
+                    {...register(`member[${index}].rommType`, {
+                      required: "Room No is required",
+                    })}
+                    className="border p-2 rounded-md w-full"
+                    defaultValue={getValues(`member[${index}].roomType`)}
                   />
                       {/* <select
                         {...register(`member[${index}].roomNo`, {
@@ -1532,8 +1669,10 @@ console.log("state",fetchedState)
                 </button>
               </div>
             </form>
+           
           </div>
         )}
+      
       </main>
     </div>
   );

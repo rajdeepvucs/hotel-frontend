@@ -3,7 +3,7 @@ import Header from '../common/Header'
 import { baseURL } from '../../../config';
 import { motion } from "framer-motion";
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import apiClient from '../../api/apiClient';
 
 const BookingInfo = () => {
 
@@ -14,7 +14,7 @@ const BookingInfo = () => {
     // Simulating API call
     const fetchData = async () => {
       try {
-        const response = await axios.get(`${baseURL}/api/total_monthlybooking`); // Replace with actual API endpoint
+        const response = await apiClient.get(`${baseURL}/api/total_monthlybooking`); // Replace with actual API endpoint
         setData(response.data.result);
       } catch (error) {
         console.error("Error fetching data", error);

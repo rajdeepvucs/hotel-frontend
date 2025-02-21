@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
-import { useEffect } from "react";
+import { useEffect,useState } from "react";
 import Home from "./components/Home/Home";
 import Sidebar from "./components/common/Sidebar";
 import AddRoomBookingForm from "./components/Home/AddRoomBookingForm";
@@ -46,23 +46,38 @@ import RevenueCollectionModeChart from "./components/Admin/RevenueCollectionMode
 import RevenueModeCollectionTable from "./components/Admin/RevenueModeCollectionTable";
 import TotalGstCollection from "./components/Admin/TotalGstCollection";
 import Search from "./components/common/Search";
+import BoadersDetails from "./components/Home/BoadersDetails";
+import AllBookingInfo from "./components/Home/AllBookingInfo";
+import Cookies from "js-cookie";
+import { jwtDecode } from "jwt-decode";
+import Tariff from "./components/Home/Tariff";
+
+import GstState from "./components/Context/Gst/GstState";
+
 export default function App() {
+  // const [isAuthenticated, setIsAuthenticated] = useState(false);
   const location = useLocation();
-  const noSidebarPaths = ["/login", "/bill"];
+  const noSidebarPaths = ["/login", "/bill","/bookingconfirmation"];
   const params = new URLSearchParams(location.search);
 
   const role1 = params.get("role");
   const user = params.get("user");
+  const token = params.get("token");
 
   useEffect(() => {
-    if (role1 && user) {
-      localStorage.setItem("role", role1);
-      localStorage.setItem("user", user);
+    if (role1 && user && token) {
+      Cookies.set("token", token, { expires: 7 });
+      const decoded = jwtDecode(token);
+      localStorage.setItem("role", decoded.role);
+      localStorage.setItem("user", decoded.name);
+      localStorage.setItem("propertyId", decoded.propertyId);
+      // setIsAuthenticated(true)
     }
   }, [role1, user]);
   const role = localStorage.getItem("role");
 
   return (
+    <GstState>
     <div className="flex h-screen bg-white text-gray-900 overflow-hidden">
       <div className="fixed inset-0 z-0">
         {/* <div className="absolute inset-0 bg-gradient-to-br from-gray-100 via-gray-200 to-gray-100 opacity-80" />
@@ -92,14 +107,29 @@ export default function App() {
             <Route path="/useredit" element={<UserUpdate />} />
             <Route path="/bookingedit" element={<UpdateBoaderForm />} />
             <Route path="/checkout" element={<CheckOutForm />} />
-            <Route path="/bookingconfirmation" element={<BookingConfirmationPage />} />
-            <Route path="/groupbooking" element={<GroupBooking />} />
+            <Route
+              path="/bookingconfirmation"
+              element={<BookingConfirmationPage />}
+            />
+            <Route path="/groupbooking" element={<GroupBooking/>} />
             <Route path="/check" element={<RoomBookingTable />} />
-            <Route path="/totalrevenuecollection" element={<TotalRenenueCollection />} />
+            <Route
+              path="/totalrevenuecollection"
+              element={<TotalRenenueCollection />}
+            />
             <Route path="/totalBooking" element={<BookingInfo />} />
-            <Route path="/getAllTodayCheckInBooking" element={<TodayCheckIn />} />
-            <Route path="/getRevenueModeCollectionTable" element={<RevenueModeCollectionTable />} />
-            <Route path="/totalgstcollection" element={<TotalGstCollection />} />
+            <Route
+              path="/getAllTodayCheckInBooking"
+              element={<TodayCheckIn />}
+            />
+            <Route
+              path="/getRevenueModeCollectionTable"
+              element={<RevenueModeCollectionTable />}
+            />
+            <Route
+              path="/totalgstcollection"
+              element={<TotalGstCollection />}
+            />
           </>
         )}
         <Route path="/" element={<Home />} />
@@ -118,18 +148,25 @@ export default function App() {
         <Route path="/checkout" element={<CheckOutForm />} />
         <Route path="/check" element={<RoomBookingTable />} />
         <Route path="/groupbooking" element={<GroupBooking />} />
-        <Route path="/bookingconfirmation" element={<BookingConfirmationPage />} />
+        <Route
+          path="/bookingconfirmation"
+          element={<BookingConfirmationPage />}
+        />
         <Route path="/visitorchart" element={<TotalVisitorChart />} />
         <Route path="/payment" element={<PaymentForm />} />
         <Route path="/getTodayAccountDetails" element={<TodayPayment />} />
-        <Route path="/RoomStatus" element={<RoomStatus/>} /> 
-        <Route path="/extenddate" element={<ExtendedDate/>} />
-        <Route path="/search" element={<Search/>} />
-     
+        <Route path="/RoomStatus" element={<RoomStatus />} />
+        <Route path="/extenddate" element={<ExtendedDate />} />
+        <Route path="/search" element={<Search />} />
+        <Route path="/boadersdetails" element={<BoadersDetails />} />
+        <Route path="/allbookinginfo" element={<AllBookingInfo />} />
+        <Route path="/tariff" element={<Tariff />} />
+       
 
 
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </div>
+    </GstState>
   );
 }

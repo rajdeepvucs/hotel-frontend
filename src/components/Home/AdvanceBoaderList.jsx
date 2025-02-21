@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Edit, Search, Trash2 ,CirclePlus, BookUser,RefreshCw } from "lucide-react";
 import { useState,useEffect } from "react";
 import {useNavigate} from 'react-router-dom'
-import axios from 'axios'
+import apiClient from "../../api/apiClient";
 import { ToastContainer,toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { baseURL } from "../../../config";
@@ -64,7 +64,7 @@ const AdvanceBoaderList = () => {
 	  handleClose();
 	  try {
 		// Assuming your API endpoint for changing status looks like this
-		const response = await axios.post(`${baseURL}/api/booking/checkout/${book.bookingId}`, {
+		const response = await apiClient.post(`${baseURL}/api/booking/checkout/${book.bookingId}`, {
 		formData
 		});
 	
@@ -86,7 +86,7 @@ const AdvanceBoaderList = () => {
 	// Update fetchBooking to also set allBookings
 	const fetchBooking = async () => {
 	  try {
-		const response = await axios.get(`${baseURL}/api/getTotalAdvanceBookingDetails`);
+		const response = await apiClient.get(`${baseURL}/api/getTotalAdvanceBookingDetails`);
 		setFilteredBooking(response.data.rooms); // Set the filtered list
 		setAllBookings(response.data); // Store the full list
 	  } catch (error) {
@@ -118,7 +118,7 @@ const handleDetail=(booking)=>{
 		}
 	  
 		try {
-		  const response = await axios.post(`${baseURL}/api/booking/changeStatusBooking/${booking.id}`, {
+		  const response = await apiClient.post(`${baseURL}/api/booking/changeStatusBooking/${booking.id}`, {
 		
 			status: 'Cancelled', 
 		  });
@@ -139,7 +139,7 @@ const handleDetail=(booking)=>{
 	  const handleCheckIn = async () => {
 		try {
 		  // Assuming your API endpoint for changing status looks like this
-		  const response = await axios.post(`${baseURL}/api/booking/changeStatusBooking/${book.id}`, {
+		  const response = await apiClient.post(`${baseURL}/api/booking/changeStatusBooking/${book.id}`, {
 			status: 'CheckIn', // or any other status you want to set
 		  });
 	  
@@ -189,7 +189,7 @@ const currentBooking = filteredBooking.slice(indexOfFirstProduct, indexOfLastPro
 const totalPages = Math.ceil(filteredBooking.length / bookingsPerPage);
 	return (
 		<div className="flex-1 overflow-auto relative z-10">
-    <Header title="Present Guest" />
+    <Header title="Upcoming Guest List" />
     <main className="max-w-7xl mx-auto py-6 px-4 lg:px-8">
 		<motion.div
 			className='bg-gray-300 backdrop-blur-md shadow-lg rounded-xl p-6 border border-gray-700 mb-8'

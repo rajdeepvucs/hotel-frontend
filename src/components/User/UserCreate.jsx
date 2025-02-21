@@ -1,5 +1,5 @@
 import React from "react";
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import { useForm } from "react-hook-form";
 import Header from "../common/Header";
 import { ToastContainer, toast } from 'react-toastify';
@@ -21,11 +21,11 @@ const UserCreate = () => {
   // Handle form submission
   const onSubmit = async (data) => {
     try {
-        console.log(data)
-      const response = await axios.post(`${baseURL}/api/user/addUser`, data);
-      toast.success(response.data.message || 'User created successfully');
-    
-      console.log("Response:", response.data);
+  
+      const response = await apiClient.post(`${baseURL}/api/user/addUser`, data);
+      toast.success(response.data.message || 'User created successfully', {
+        onClose: () => { navigate("/user") } // navigate on toast close
+   });
       reset()
     } catch (error) {
       console.error("Error creating room:", error);

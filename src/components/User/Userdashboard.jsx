@@ -3,7 +3,7 @@ import Header from "../common/Header";
 import { Home, Search, IndianRupeeIcon, Users, Calendar, User } from "lucide-react";
 import { FaHome } from "react-icons/fa";
 import { motion } from "framer-motion";
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import { baseURL } from "../../../config";
 import BookingDetailsTable from "../Home/BookingDetailsTable";
 import CheckInBoaderList from "../Home/CheckInBoaderList";
@@ -75,7 +75,7 @@ function Userdashboard() {
   // Function to fetch total rooms booked
   const fetchData = async () => {
     try {
-      const response = await axios.get(`${baseURL}/api/getTotalRoomBooked`);
+      const response = await apiClient.get(`${baseURL}/api/getTotalRoomBooked`);
       setBookedRoom(response.data.totalRoomsBooked);
     } catch (error) {
       console.error("Error fetching total booked rooms:", error);
@@ -85,7 +85,7 @@ function Userdashboard() {
   // Function to fetch total rooms available
   const fetchTotalRooms = async () => {
     try {
-      const response = await axios.get(`${baseURL}/api/getTotalRoom`);
+      const response = await apiClient.get(`${baseURL}/api/getTotalRoom`);
       setTotalRoom(response.data.rooms);
     } catch (error) {
       console.error("Error fetching total rooms:", error);
@@ -95,7 +95,7 @@ function Userdashboard() {
 
   const fetchTotaladvanceBooking = async () => {
     try {
-      const response = await axios.get(
+      const response = await apiClient.get(
         `${baseURL}/api/getTotalAdvanceBooking`
       );
       setTotalAdvanceBooking(response.data.rooms);
@@ -137,7 +137,7 @@ function Userdashboard() {
 
 	const fetchAccounts = async () => {
 		try {
-		  const response = await axios.get(`${baseURL}/api/account/getToday`);
+		  const response = await apiClient.get(`${baseURL}/api/account/getToday`);
 		
 		  setFilteredAccount(response.data.account)
 		} catch (error) {
@@ -151,7 +151,7 @@ function Userdashboard() {
   }, []);
   const fetchTotalVistor = async () => {
 		try {
-		  const response = await axios.get(`${baseURL}/api/getTotalPeople`);
+		  const response = await apiClient.get(`${baseURL}/api/getTotalPeople`);
 		
       setTotalVisitor(response.data.totalPeople)
 		} catch (error) {
@@ -161,7 +161,7 @@ function Userdashboard() {
   
 	const fetchTodayCollection = async () => {
 		try {
-		  const response = await axios.get(`${baseURL}/api/getTodayCollection`);
+		  const response = await apiClient.get(`${baseURL}/api/getTodayCollection`);
 		
       setTodayCollection(response.data.todayTotalCollection)
 		} catch (error) {

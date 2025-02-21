@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import apiClient from '../../api/apiClient';
 import Header from './Header';
 import _ from 'lodash';
 
@@ -17,7 +17,7 @@ function Search() {
             try {
                 setLoading(true);
                 setError(null);
-                const res = await axios.get('http://localhost:3000/api/booking/search', {
+                const res = await apiClient.get('http://localhost:3000/api/booking/search', {
                     params: {
                         query: query,
                         page: page,

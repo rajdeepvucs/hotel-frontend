@@ -10,7 +10,7 @@ import {
 import { Tooltip } from '@mui/material';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { baseURL } from "../../../config";
@@ -117,7 +117,7 @@ const BookingDetailsTable = () => {
     if (!selectedBooking) return; // Exit if no booking selected
 
     try {
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${baseURL}/api/booking/changeStatusBooking/${selectedBooking.id}`,
         {
           status: "Cancelled",
@@ -147,7 +147,7 @@ const BookingDetailsTable = () => {
   };
 
   const navigate = useNavigate();
-  const [paymentMode, setPaymentMode] = React.useState("cash"); // Default to 'cash'
+  const [paymentMode, setPaymentMode] = React.useState("cash"); 
   const [tnxId, setTnxId] = useState('');
   const [amountPaid, setAmountPaid] = useState(0);
   const handlePaymentModeChange = (event) => {
@@ -173,7 +173,7 @@ const BookingDetailsTable = () => {
     handleClose();
     try {
       // Assuming your API endpoint for changing status looks like this
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${baseURL}/api/booking/checkout/${book.bookingId}`,
         {
           formData,
@@ -199,7 +199,7 @@ const BookingDetailsTable = () => {
   // Update fetchBooking to also set allBookings
   const fetchBooking = async () => {
     try {
-      const response = await axios.get(`${baseURL}/api/booking/getAllCheckInBooking`);
+      const response = await apiClient.get(`${baseURL}/api/booking/getAllCheckInBooking`);
       setFilteredBooking(response.data); // Set the filtered list
       setAllBookings(response.data); // Store the full list
     } catch (error) {
@@ -222,7 +222,7 @@ const BookingDetailsTable = () => {
   const handleCheckIn = async () => {
     try {
       // Assuming your API endpoint for changing status looks like this
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${baseURL}/api/booking/changeStatusBooking/${book.id}`,
         {
           status: "CheckIn", // or any other status you want to set
@@ -359,7 +359,7 @@ const BookingDetailsTable = () => {
           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 ">{booking.name}</td>
           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{booking.mobile}</td>
           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{booking.checkInDate} {booking.CheckInTime}</td>
-          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{booking.checkOutDate}{booking.checkOutTime}</td>
+          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{booking.checkOutDate} {booking.checkOutTime}</td>
           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{booking?.nights}</td>
           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
             <FaMale className="inline mr-2" /> {booking.no_of_adults || 0}

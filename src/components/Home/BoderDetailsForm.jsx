@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef,useContext } from "react";
 import Header from "../common/Header";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { baseURL } from "../../../config";
@@ -14,6 +14,7 @@ import Modal from "@mui/material/Modal";
 import { CircleX } from "lucide-react";
 import Webcam from "react-webcam";
 import { getLocalTime } from "../../utils/dateTime";
+import GstContext from "../Context/Gst/GstContext";
 
 const videoConstraints = {
   width: 440,
@@ -76,16 +77,47 @@ function BoderDetailsForm() {
   const [selectedState, setSelectedState] = useState("");
   const [country, setCountry] = useState("India");
   const [gstCol, setGstCol] = useState(0);
+  const [showaddress, setShowAddress] = useState(true);
+  const [openModalIndex, setOpenModalIndex] = useState(null);
+  const [photoPreviews, setPhotoPreviews] = useState({});
+  const [imagePreviews, setImagePreviews] = useState({});
+  const [extraFeatures, setExtraFeatures] = useState([]);
+  const { gstRate } = useContext(GstContext);
+   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [paymentMode, setPaymentMode] = useState("Cash");
+   const [tnx_id, setTnx_id] = useState(null);
+   const[totalAmount,setTotalAmount]=useState(0);
+   const[extra,setExtra]=useState(0);
+   const[extraBed,setExtraBed]=useState(0);
+   const[amt,setAmt]=useState(0);
+   const closeModal = () => {
+    setIsModalOpen(false);
+  };
+  const handlePaymentModeChange = (e) => {
+    const value = e.target.value;
+    setPaymentMode(value);
+    setValue("paymentmode", value);
+  };
+  const handleTnxId = (e) => {
+    const value = e.target.value;
+    setTnx_id(value);
+    setValue("tnx_id", value);
+  };
   const handleStateChange = (e) => {
     setSelectedState(e.target.value);
     setValue("state", e.target.value); // Update react-hook-form state
   };
   const location = useLocation();
   const { room, bookedRoom, selectedDate } = location.state || {};
-
+   console.log("bookedRoom", bookedRoom);
   // Initialize `days` with a default value
-  const [days, setDays] = useState(bookedRoom?.nights||0);
-
+  const [days, setDays] = useState(bookedRoom?.nights || 0);
+  const gstPct=  gstRate.find(gst =>
+    gst.GST_TYPE === 'ROOM' &&
+    room?.tariff>= gst.GST_LOWER_RANGE &&
+    room?.tariff <= gst.GST_HIGHER_RANGE
+  )
+const gstRate1 = gstPct?.GST_PCT; 
   useEffect(() => {
     if (bookedRoom?.tariff) {
       setDays(Number(bookedRoom?.nights)); // Convert to number if it's a string
@@ -93,8 +125,6 @@ function BoderDetailsForm() {
       setValue("no_of_nights", bookedRoom?.nights);
       // setTotalAmount(bookedRoom.totalAmount);
       setValue("amount", bookedRoom?.tariff);
-
-
     } else {
       setValue("amount", room.tariff);
 
@@ -108,7 +138,17 @@ function BoderDetailsForm() {
     bookedRoom?.bookingId ? bookedRoom?.bookingId : generateBookingId()
   );
   const [count, setCount] = useState(1);
-
+  const [showDialog, setShowDialog] = useState(
+    bookedRoom?.bookingId ? true : false
+  );
+  const closeAlert = () => {
+    setShowDialog(false);
+    setShowAddress(false);
+  };
+  const closeAlertNo = () => {
+    setShowDialog(false);
+    setShowAddress(true);
+  };
   const formattedDate = selectedDate.toISOString().split("T")[0];
   const navigate = useNavigate(); // Initialize useNavigate
   const [boarders, setBoarders] = useState([]); // State to store fetched boarders
@@ -156,24 +196,26 @@ function BoderDetailsForm() {
     setValue("no_of_nights", days);
   }, [days, setValue]);
   const calculateTotal = () => {
-    const parsedCount = parseFloat(count) || 0; // Number of guests
-    const parsedMax = parseFloat(max) || 0; // Max allowable guests without extra bed
-    const parsedDays = parseFloat(days || 0); // Number of days of stay
-    const parsedTariff = parseFloat(tariff) || 0; // Tariff per day
-    const parsedExtrabedcharge = parseFloat(extrabedcharge) || 0; // Extra bed charge per day
+    console.log("calculateTotal function called"); // ADD THIS LINE
+    const parsedCount = parseFloat(count) || 0;
+    const parsedMax = parseFloat(max) || 0;
+    const parsedDays = parseFloat(days || 0);
+    const parsedTariff = parseFloat(tariff) || 0;
+    const parsedExtrabedcharge = parseFloat(extrabedcharge) || 0;
 
-    // Calculate extra beds needed
     const extrabed = parsedCount - parsedMax > 0 ? parsedCount - parsedMax : 0;
-
-    // Calculate the total amount
+    setExtraBed(extrabed)
     const value =
-      parsedDays * parsedTariff + parsedDays * extrabed * parsedExtrabedcharge;
-    const gst = value * 0.18;
+      parsedDays * parsedTariff ;
+  
+  
+   
+
+    const gst = value * gstRate1/100;
     setGstCol(gst.toFixed(2));
-    // Set the total amount with 18% tax
-    const totalWithTax = 1.18 * value;
-    setValue("totalAmount", totalWithTax);
-    //setTotalAmount(totalWithTax)
+ setExtra(parsedDays * extrabed * parsedExtrabedcharge)
+    const totalWithTax = value + gst+ parsedDays * extrabed * parsedExtrabedcharge; // Calculate Total Amount with tax.
+   setTotalAmount( totalWithTax);
 
     return totalWithTax;
   };
@@ -239,25 +281,87 @@ function BoderDetailsForm() {
     }
   };
   const webcamRef = useRef(null);
-  const [imageSrc, setImageSrc] = useState(null);
+  const [imageSrc, setImageSrc] = useState({});
   const [imageSrc1, setImageSrc1] = useState(null);
+  const [open, setOpen] = React.useState(false);
+  const handleRemovePreview = (index, fieldName) => () => {
+    if (fieldName === "photo") {
+      setPhotoPreviews((prev) => {
+        const updated = { ...prev };
+        delete updated[index];
+        return updated;
+      });
+      setImageSrc((prev) => {
+        const updated = { ...prev };
+        delete updated[index];
+        return updated;
+      });
+      setValue(`member[${index}].photo`, null);
+      setIsPhotoPreviewVisible((prev) => ({
+        ...prev,
+        [index]: false,
+      }));
+    }
+    if (fieldName === "image") {
+      setImagePreviews((prev) => {
+        const updated = { ...prev };
+        delete updated[index];
+        return updated;
+      });
+      setValue(`member[${index}].image`, null);
+      setIsImagePreviewVisible((prev) => ({
+        ...prev,
+        [index]: false,
+      }));
+    }
+  };
+  const handleCameraClick = (index) => () => {
+    console.log("index", index);
+    handleOpen(index);
+    setValue(`member[${index}].webcamCapture`, true);
+  };
+  const handleOpen = (index) => {
+    setOpenModalIndex(index);
+  };
+  const handleClose = () => {
+    setOpenModalIndex(null);
+  };
   // Fetch boarders from the server
   const fetchBoarders = async () => {
     try {
       if (bookedRoom) {
-        const response = await axios.get(`${baseURL}/api/booking/boaders`, {
+        const response = await apiClient.get(`${baseURL}/api/booking/boaders`, {
           params: {
             bookingId: bookedRoom?.bookingId, // First parameter
-            checkInDate: bookedRoom?.checkInDate, // Second parameter
+            checkInDate: bookedRoom?.checkInDate,
+            roomno: bookedRoom?.roomno,
           },
         });
-
+        console.log("Full API response:", response); // Add this!
+        console.log("first",response.data)
         setBoarders(response.data); // Set the fetched boarders into state
+      
+
+        if (response.data?.length > 0 && response.data[0]?.extrafeature && response.data[0].extrafeature!=="undefined") {
+          try {
+
+            const parsedFeatures = JSON.parse(response.data[0]?.extrafeature);
+            setExtraFeatures(parsedFeatures);
+          } catch (error) {
+            console.error("Error parsing extrafeature:", error);
+             setExtraFeatures([]);
+          }
       }
-    } catch (error) {
-      console.error("Failed to fetch boarders:", error);
-    }
+
+ }
+} catch (error) {
+ console.error("Failed to fetch boarders:", error);
+}
   };
+  
+  const status = boarders && boarders.length > 0 ? boarders[0].status : null;
+
+  const showActionButtons = status !== "CheckOut";
 
   useEffect(() => {
     // Fetch boarders when the component mounts
@@ -272,34 +376,48 @@ function BoderDetailsForm() {
     formData.append("bookingId", data.bookingId);
     formData.append(
       "address",
-      data.address.toUpperCase() +
-        "-" +
-        data.pin +
-        "-" +
-        selectedState +
-        "-" +
-        country.toUpperCase()
+      data.address && data.pin && selectedState && country
+        ? `${data.address.toUpperCase()}-${
+            data.pin
+          }-${selectedState}-${country.toUpperCase()}`
+        : bookedRoom?.address || ""
     );
-    formData.append("email", data.email);
+    formData.append(
+      "pin",
+       data.pin ? `${data.pin}`
+        : bookedRoom?.pin || ""
+    );
+   
+    formData.append(
+      "state",`${selectedState}`?
+      ` ${selectedState}`:bookedRoom?.state
+    );
+    formData.append(
+      "country",
+      `${country}`? ` ${country}`:bookedRoom?.country
+    );
+    formData.append("email", data.email || bookedRoom?.email);
     formData.append("roomno", data.roomNo);
+ 
 
-    formData.append("mobile", data.mobile);
+    formData.append("mobile", data.mobile || bookedRoom?.mobile);
     formData.append("checkInDate", data.checkInDate);
     formData.append("checkOutDate", data.checkOutDate);
     formData.append("tariff", data.amount);
     formData.append("balance", calculateTotal() - (bookedRoom?.advamount || 0));
     formData.append("gst", gstCol);
+    formData.append("roomGst", gstCol);
     formData.append("advamount", bookedRoom?.advamount || 0);
     formData.append("mealPlan", meal);
     formData.append("purpose", data.purpose);
     formData.append("comefrom", data.comefrom);
     formData.append("goingto", data.goingto);
     formData.append("status", "checkIn");
-    formData.append("extrabed", data.extrabed);
+    formData.append("extrabed", extraBed);
     formData.append("extrabedcharge", data.extrabedcharge);
     formData.append("CheckInTime", getLocalTime());
     formData.append("createdBy", localStorage.getItem("user"));
-
+    formData.append("roomType", room?.roomType);
     formData.append("nights", days);
 
     data.member.forEach((member, index) => {
@@ -315,23 +433,21 @@ function BoderDetailsForm() {
       } else {
         no_of_minor++;
       }
-      formData.append("no_of_adults", no_of_adults);
-      formData.append("no_of_minor", no_of_minor);
-      formData.append("totalAmount", calculateTotal());
+     
       // Check for uploaded photo first
       if (member.photo && member.photo[0]) {
         const uploadedPhotoFile = new File(
           [member.photo[0]],
-          `${member.fname}_${member.lname}}_photo_uploaded.jpg`,
+          `${member.fname}_${member.lname}_photo_uploaded.jpg`,
           { type: member.photo[0].type }
         );
         formData.append(`member[${index}].photo`, uploadedPhotoFile);
-      } else if (imageSrc) {
+      } else if (imageSrc[index]) {
         // If no uploaded photo, use webcam image
         const photoFile = new File(
-          [imageSrc],
+          [imageSrc[index]],
           `${member.fname}_${member.lname}_photo_webcam.jpg`,
-          { type: imageSrc.type }
+          { type: imageSrc[index].type }
         );
         formData.append(`member[${index}].photo`, photoFile);
         setImageSrc(null); // Clear webcam image after use
@@ -347,14 +463,16 @@ function BoderDetailsForm() {
         formData.append(`member[${index}].image`, imageFile);
       }
     });
-
+    formData.append("no_of_adults", no_of_adults);
+    formData.append("no_of_minor", no_of_minor);
+    formData.append("totalAmount", calculateTotal());
     // Log formData contents
     for (let [key, value] of formData.entries()) {
       console.log(key, value);
     }
 
     try {
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${baseURL}/api/booking/boaderdetails`,
         formData,
         {
@@ -370,8 +488,8 @@ function BoderDetailsForm() {
             response.data.message || "Booking created successfully"
           );
 
-          navigate("/bookingconfirmation", { state: { bookingId } });
-          // setIsModalOpen(true);
+         // navigate("/bookingconfirmation", { state: { bookingId } });
+           setIsModalOpen(true);
         }, 1000);
       }
       reset();
@@ -382,11 +500,8 @@ function BoderDetailsForm() {
   };
 
   const today = new Date().toISOString().split("T")[0];
-  const [open, setOpen] = React.useState(false);
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
 
-  const capture = async () => {
+  const capture = async (index) => {
     // Capture image from webcam and store it in state
     const image = webcamRef.current.getScreenshot();
 
@@ -397,14 +512,73 @@ function BoderDetailsForm() {
 
     // Create a file from the blob
     const file = new File([blob], "captured-image.png", { type: "image/png" });
-
+    setImageSrc((prevImageSrc) => ({
+      ...prevImageSrc,
+      [index]: file,
+    }));
     // Now you can upload this file or use it as needed
-    setImageSrc(file);
+    //   setImageSrc(file);
+  };
+  const handleRemoveImageClick = (index) => () => {
+    handleRemoveImage(index);
+  };
+  const handleRemoveImage = (index) => {
+    setImageSrc((prev) => {
+      const updated = { ...prev };
+      delete updated[index];
+      return updated;
+    });
+    setImageSrc1(null);
   };
 
   const onUserMedia = (e) => {
     console.log(e);
   };
+  const handleSubmitModal = async () => {
+    const advanceAmount = parseFloat(amt);
+     
+       if (advanceAmount <= 0) {
+         toast.error("Advance amount must be a positive number. Please enter a valid amount.");
+         return; // Stop the submission
+       }
+   try {
+
+     const payload = {
+       bookingId,
+
+       totalAmount:totalAmount ,
+   
+       advamount: amt,
+       balance: totalAmount-bookedRoom?.advamount-amt,
+        paymentMode,
+        transactionId:tnx_id,
+       createdBy: localStorage.getItem("user"),
+       paymentTime: getLocalTime(),
+       description: "Advance paid at CheckIn",
+     };
+console.log("payload",payload)
+     const response = await apiClient.post(
+       `${baseURL}/api/booking/submitBooking`,
+       payload,
+       {
+         headers: {
+           "Content-Type": "application/json",
+         },
+       }
+     );
+
+     if (response.status === 200) {
+       toast.success("Booking details submitted successfully!");
+       navigate("/bookingconfirmation", { state: { bookingId } })
+       closeModal(); // Optionally close the modal
+     }
+   } catch (error) {
+     console.error("Error submitting data:", error);
+     toast.error(
+       error.response?.data?.message || "Failed to submit booking details."
+     );
+   }
+ };
   return (
     <div className="flex-1 overflow-auto relative z-10">
       <Header
@@ -419,6 +593,7 @@ function BoderDetailsForm() {
         <div className="flex flex-col justify-center items-center">
           <ToastContainer />
           {/* Form */}
+          {!bookedRoom && navigate("/groupbooking")}
           {(!bookedRoom || bookedRoom?.status === "Advance Booking") && (
             <form
               onSubmit={handleSubmit(onSubmit)}
@@ -656,10 +831,9 @@ function BoderDetailsForm() {
                         <div className="flex flex-row">
                           <CameraIcon
                             size={50}
-                            onClick={() => {
-                              handleOpen();
-                            }}
+                            onClick={handleCameraClick(index)}
                           />
+
                           <input
                             type="file"
                             id={`member[${index}].photo`}
@@ -669,11 +843,48 @@ function BoderDetailsForm() {
                             className="border p-2 rounded-md w-full"
                           />
                         </div>
+                        <p className="mt-2  pl-2 text-gray-500  text-sm">
+                          {watch(`member.${index}.photo`)?.[0]?.name}
+                        </p>
+                        {watch(`member.${index}.photo`)?.[0] && (
+                          <div className="relative mt-2 h-20 w-30">
+                            <img
+                              src={URL.createObjectURL(
+                                watch(`member.${index}.photo`)[0]
+                              )}
+                              alt="Photo Preview"
+                              className="mt-2 h-20 w-30  "
+                            />
+                            <button
+                              type="button"
+                              className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
+                              onClick={handleRemovePreview(index, "photo")}
+                            >
+                              <CrossIcon size={10} />
+                            </button>
+                          </div>
+                        )}
+                        {/* {imageSrc[index] && (
+                          <div className="relative mt-2 h-20 w-30">
+                            <img
+                              src={URL.createObjectURL(imageSrc[index])}
+                              alt="Captured"
+                              className="mt-2 h-20 w-30"
+                            />
+                            <button
+                              type="button"
+                              className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
+                              onClick={handleRemovePreview(index, "photo")}
+                            >
+                              <CrossIcon size={10} />
+                            </button>
+                          </div>
+                        )} */}
                         {/* {errors?.member?.[index]?.photo && (
-                      <p className="text-red-500 text-sm">
-                        {errors.member[index].photo.message}
-                      </p>
-                    )} */}
+                                                                           <p className="text-red-500 text-sm">
+                                                                             {errors.member[index].photo.message}
+                                                                           </p>
+                                                                         )} */}
                       </div>
                     </div>
 
@@ -712,7 +923,27 @@ function BoderDetailsForm() {
                         onBlur={() => trigger(`member.${index}.image`)}
                         className="border p-2 rounded-md w-full"
                       />
-
+                      <p className="mt-2  pl-2 text-gray-500  text-sm">
+                        {watch(`member.${index}.image`)?.[0]?.name}
+                      </p>
+                      {watch(`member[${index}].image`)?.[0] && (
+                        <div className="relative mt-2 h-20 w-30">
+                          <img
+                            src={URL.createObjectURL(
+                              watch(`member[${index}].image`)[0]
+                            )}
+                            alt="Photo Preview"
+                            className="mt-2 h-20 w-30"
+                          />
+                          <button
+                            type="button"
+                            className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
+                            onClick={handleRemovePreview(index, "image")}
+                          >
+                            <CrossIcon size={10} />
+                          </button>
+                        </div>
+                      )}
                       {errors?.member?.[index]?.image && (
                         <p className="text-red-500 text-sm">
                           {errors.member[index].image.message}
@@ -755,6 +986,7 @@ function BoderDetailsForm() {
                           onClick={() => {
                             setCount(count - 1);
                             remove(index);
+                            calculateTotal();
                           }}
                           className="bg-red-500 text-white py-0.5 px-1 text-xs rounded-md h-8"
                         >
@@ -762,6 +994,64 @@ function BoderDetailsForm() {
                         </button>
                       )}
                     </div>
+                    <Modal
+                      open={
+                        openModalIndex === index &&
+                        watch(`member[${index}].webcamCapture`)
+                      }
+                      onClose={handleClose}
+                      aria-labelledby="modal-modal-title"
+                      aria-describedby="modal-modal-description"
+                    >
+                      <Box sx={style}>
+                        <div className="flex flex-row justify-between items-center ">
+                          <div className="basis-1/2">
+                            <Typography
+                              id="modal-modal-title"
+                              variant="h6"
+                              component="h2"
+                            >
+                              Capture Photo
+                            </Typography>
+                          </div>
+                          <div className="mr-2 basis-1/6">
+                            <CircleX
+                              size={24}
+                              color="red"
+                              onClick={handleClose}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Webcam
+                            audio={false}
+                            ref={webcamRef}
+                            screenshotFormat="image/jpeg"
+                            videoConstraints={videoConstraints}
+                            onUserMedia={onUserMedia}
+                            mirrored={true}
+                          />
+                          <button
+                            onClick={() => capture(index)}
+                            className="bg-blue-500 text-white py-2 px-4 rounded-md mt-1"
+                          >
+                            Capture Photo
+                          </button>
+                          <button
+                            onClick={handleRemoveImageClick(index)}
+                            className="bg-red-500 text-white py-2 px-4 rounded-md mt-1"
+                          >
+                            Refresh
+                          </button>
+                          {imageSrc1 && (
+                            <div>
+                              <h3>Captured Image</h3>
+                              <img src={imageSrc1} alt="Captured" />
+                            </div>
+                          )}
+                        </div>
+                      </Box>
+                    </Modal>
                   </div>
                 ))}
 
@@ -832,12 +1122,37 @@ function BoderDetailsForm() {
               </div>
 
               {/* Address Info  */}
-              {guestType === "Indian" && (
+              {guestType === "Indian" && showaddress && (
                 <div className="border border-gray-300 rounded-md p-6 shadow-md relative mt-4">
                   <h2 className="absolute -top-3 left-5 bg-white px-2 text-lg font-semibold text-gray-700">
                     Address Info
                   </h2>
-
+                  {showDialog && (
+                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                      <div className="bg-white p-4 rounded shadow">
+                        <p className="mb-4">
+                          Are You Wanted to Keep This Mobile,email,Address!
+                        </p>
+                        <p className="mb-4">Mobile:{bookedRoom?.mobile} </p>
+                        <p className="mb-4"> Email:{bookedRoom?.email}</p>
+                        <p className="mb-4"> Address:{bookedRoom?.address}</p>
+                        <div className="flex flex-row justify-between items-center ">
+                          <button
+                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700"
+                            onClick={closeAlert}
+                          >
+                            YES
+                          </button>
+                          <button
+                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700"
+                            onClick={closeAlertNo}
+                          >
+                            NO
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-4 gap-4 px-10 ">
                     <div className="flex flex-col space-y-1 mb-4">
                       <label htmlFor="mobile" className="text-base">
@@ -1251,12 +1566,13 @@ function BoderDetailsForm() {
                     <input
                       id="extrabed"
                       placeholder="0"
-                      value={count - max > 0 ? count - max : 0}
+                       value={count - max > 0 ? count - max : 0}
                       readOnly
                       {...register("extrabed", {})}
                       className="border p-2 rounded-md w-full"
                     />
                   </div>
+                 
                   <div className="flex flex-col space-y-1 mb-4">
                     <label htmlFor="advamount" className="text-base">
                       Extra Bed Charge
@@ -1309,7 +1625,6 @@ function BoderDetailsForm() {
                     </label>
                     <input
                       id="no_of_nights"
-                     
                       value={days}
                       placeholder="2 nights"
                       {...register("no_of_nights", {})}
@@ -1318,40 +1633,17 @@ function BoderDetailsForm() {
                   </div>
                   <div className="flex flex-col space-y-1 mb-4">
                     <label htmlFor="advamount" className="text-base">
-                      GST
+                      GST@{gstRate1}%
                     </label>
                     <input
                       id="no_of_nights"
-                      value={"18%"}
+                      value={gstCol}
                       placeholder="GST"
                       readonly
                       className="border p-2 rounded-md w-full"
                     />
                   </div>
-                  <div className="flex flex-col space-y-1 mb-4 hidden">
-                    <label htmlFor="advamount" className="text-base">
-                      Discount Amount
-                    </label>
-                    <input
-                      id="disamt"
-                      placeholder="Discount Amount Rs/-100"
-                      {...register("disamount", {
-                        onBlur: () => {
-                          calculateDay();
-                        },
-                        pattern: {
-                          value: /^[0-9]*$/,
-                          message: "Discount Amount must be a number",
-                        },
-                      })}
-                      className="border p-2 rounded-md w-full"
-                    />
-                    {errors.disamount && (
-                      <p className="text-red-500 text-sm">
-                        {errors.disamount.message}
-                      </p>
-                    )}
-                  </div>
+
                   <div className="flex flex-col space-y-1">
                     <label htmlFor="mealPlan" className="text-neutral-900">
                       Meal Plan:
@@ -1388,7 +1680,7 @@ function BoderDetailsForm() {
                     </label>
                     <input
                       id="total"
-                      value={getValues("totalAmount")}
+                      value={totalAmount}
                       readOnly
                       {...register("totalAmount", {})}
                       className="border p-2 rounded-md w-full"
@@ -1468,62 +1760,6 @@ function BoderDetailsForm() {
                   Submit
                 </button>
               </div>
-              {/* // Modal capture photo */}
-              <div>
-                <Modal
-                  open={open}
-                  onClose={handleClose}
-                  aria-labelledby="modal-modal-title"
-                  aria-describedby="modal-modal-description"
-                >
-                  <Box sx={style}>
-                    <div className="flex flex-row justify-between items-center ">
-                      <div className="basis-1/2">
-                        <Typography
-                          id="modal-modal-title"
-                          variant="h6"
-                          component="h2"
-                        >
-                          Capture Photo
-                        </Typography>
-                      </div>
-                      <div className="mr-2 basis-1/6">
-                        <CircleX size={24} color="red" onClick={handleClose} />
-                      </div>
-                    </div>
-                    <div>
-                      <Webcam
-                        audio={false}
-                        ref={webcamRef}
-                        screenshotFormat="image/jpeg"
-                        videoConstraints={videoConstraints}
-                        onUserMedia={onUserMedia}
-                        mirrored={true}
-                      />
-                      <button
-                        onClick={capture}
-                        className="bg-blue-500 text-white py-2 px-4 rounded-md mt-1"
-                      >
-                        Capture Photo
-                      </button>
-                      <button
-                        onClick={() => {
-                          setImageSrc1(null);
-                        }}
-                        className="bg-red-500 text-white py-2 px-4 rounded-md mt-1"
-                      >
-                        Refresh
-                      </button>
-                      {imageSrc1 && (
-                        <div>
-                          <h3>Captured Image</h3>
-                          <img src={imageSrc1} alt="Captured" />
-                        </div>
-                      )}
-                    </div>
-                  </Box>
-                </Modal>
-              </div>
             </form>
           )}
 
@@ -1590,6 +1826,18 @@ function BoderDetailsForm() {
                     </div>
                     <div className="flex flex-col space-y-1">
                       <label htmlFor="totalNights" className="text-base">
+                        Room Type
+                      </label>
+                      <input
+                        id="totalNights"
+                        type="text"
+                        value={boarders[0]?.roomType}
+                        className="border p-2 rounded-md w-full"
+                        readOnly
+                      />
+                    </div>
+                    <div className="flex flex-col space-y-1">
+                      <label htmlFor="totalNights" className="text-base">
                         Total Nights
                       </label>
                       <input
@@ -1637,6 +1885,7 @@ function BoderDetailsForm() {
                         readOnly
                       />
                     </div>
+      
                   </div>
                 </div>
 
@@ -1765,6 +2014,62 @@ function BoderDetailsForm() {
                 </div>
                 <div className="border border-gray-300 rounded-md p-6 shadow-md relative mt-4">
                   <h2 className="absolute -top-3 left-5 bg-white px-2 text-lg font-semibold text-gray-700">
+                   AddOn Feature
+                  </h2>
+                  {extraFeatures.feature && extraFeatures.length > 0 ? (
+
+extraFeatures.map((feature, index) => (
+    <div key={index} className="flex flex-col space-y-1">
+        <label htmlFor={`extraFeature-${index}`} className="text-base">
+            {feature.feature} Details
+        </label>
+        <div className="grid grid-cols-3 gap-2">
+            <div>
+                <label htmlFor={`quantity-${index}`} className="block text-gray-700 text-sm font-bold mb-2">
+                    Quantity:
+                </label>
+                <input
+                    type="text"
+                    id={`quantity-${index}`}
+                    value={feature.quantity}
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    readOnly
+                />
+            </div>
+             <div>
+                <label htmlFor={`price-${index}`} className="block text-gray-700 text-sm font-bold mb-2">
+                   Actual Price:
+                </label>
+                <input
+                    type="text"
+                    id={`price-${index}`}
+                    value={feature.price}
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    readOnly
+                />
+            </div>
+             <div>
+                <label htmlFor={`bedcharge-${index}`} className="block text-gray-700 text-sm font-bold mb-2">
+                    Charge:
+                </label>
+                <input
+                    type="text"
+                    id={`bedcharge-${index}`}
+                    value={feature.bedcharge}
+                    className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                    readOnly
+                />
+            </div>
+        </div>
+    </div>
+))
+) : (
+<p className="text-gray-500">No extra features available.</p>
+)}
+                  </div>
+
+                <div className="border border-gray-300 rounded-md p-6 shadow-md relative mt-4">
+                  <h2 className="absolute -top-3 left-5 bg-white px-2 text-lg font-semibold text-gray-700">
                     Contact Details
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
@@ -1852,6 +2157,7 @@ function BoderDetailsForm() {
                     </div>
                   </div>
                 </div>
+
                 <div class="flex  flex-row items-center justify-center w-full ">
                   <div class="bg-gray-200 p-4 rounded">
                     <button
@@ -1863,38 +2169,46 @@ function BoderDetailsForm() {
                       Back
                     </button>
                   </div>
-                  <div class="bg-gray-200 p-4 rounded">
-                    <button
-                      class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
-                      onClick={() => {
-                        navigate("/checkout", { state: { book: boarders[0] } });
-                      }}
-                    >
-                      CheckOut
-                    </button>
-                  </div>
-                  <div class="bg-gray-200 p-4 rounded">
-                    <button
-                      class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
-                      onClick={() => {
-                        navigate("/payment", {
-                          state: { book: boarders[0]?.bookingId },
-                        });
-                      }}
-                    >
-                      Pay
-                    </button>
-                  </div>
-                  <div class="bg-gray-200 p-4 rounded">
-                    <button
-                      class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
-                      onClick={() => {
-                        navigate("/extenddate", { state: { boarders, room } });
-                      }}
-                    >
-                      Extend Date
-                    </button>
-                  </div>
+                  {showActionButtons && (
+                    <>
+                      <div class="bg-gray-200 p-4 rounded">
+                        <button
+                          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
+                          onClick={() => {
+                            navigate("/checkout", {
+                              state: { book: boarders[0] },
+                            });
+                          }}
+                        >
+                          CheckOut
+                        </button>
+                      </div>
+                      <div class="bg-gray-200 p-4 rounded">
+                        <button
+                          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
+                          onClick={() => {
+                            navigate("/payment", {
+                              state: { book: boarders[0]?.bookingId },
+                            });
+                          }}
+                        >
+                          Pay
+                        </button>
+                      </div>
+                      <div class="bg-gray-200 p-4 rounded">
+                        <button
+                          class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
+                          onClick={() => {
+                            navigate("/extenddate", {
+                              state: { boarders, room },
+                            });
+                          }}
+                        >
+                          Extend Date
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             ) : (
@@ -1902,6 +2216,152 @@ function BoderDetailsForm() {
             )}
           </div>
         </div>
+        <>
+              {/* Modal */}
+              {isModalOpen && (
+                <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50 z-50">
+                  <div className="border border-gray-300 rounded-md p-3 shadow-md relative bg-white w-96">
+                    <h2 className="absolute -top-3 left-5 bg-white px-2 text-lg font-semibold text-gray-700">
+                      Booking Summary
+                    </h2>
+                    <div className="flex flex-col space-y-1">
+                      {/* Replace with dynamic data from your response */}
+                      <div className="flex flex-row justify-between items-center p-2 mt-2">
+                        <span className="text-sm text-gray-700">
+                          Booking ID:
+                        </span>
+                        <span className="text-sm text-gray-900 font-medium">
+                          {bookingId || "N/A"}
+                        </span>
+                      </div>
+                     
+                      <div className="flex flex-row justify-between items-center p-2">
+                        <span className="text-sm text-gray-700">
+                          Total Room Tariff:
+                        </span>
+                        <span className="text-sm text-gray-900 font-medium">
+                          ₹{ Number(bookedRoom?.tariff).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex flex-row justify-between items-center p-2">
+                        <span className="text-sm text-gray-700">
+                          Extra Bed Charge:
+                        </span>
+                        <span className="text-sm text-gray-900 font-medium">
+                          ₹{ Number(extra).toFixed(2)}
+                        </span>
+                      </div>
+                     
+                    
+                      <div className="flex flex-row justify-between items-center p-2">
+                        <span className="text-sm text-gray-700"> GST:</span>
+                        <span className="text-sm text-gray-900 font-medium">
+                          ₹{gstCol}
+                        </span>
+                      </div>
+                    
+                      <hr className="border-t border-gray-300 my-1" />
+                      <div className="flex flex-row justify-between items-center p-2">
+                        <span className="text-sm text-gray-700">
+                          Total Amount:
+                        </span>
+                        <span className="text-sm text-gray-900 font-bold">
+                          ₹ {totalAmount.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex flex-row justify-between items-center p-2">
+                        <span className="text-sm text-gray-700">
+                          Advance Amount:
+                        </span>
+                        <span className="text-sm text-gray-900 font-bold">
+                          ₹ {Number(bookedRoom?.advamount).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex flex-row justify-between items-center p-2">
+                        <span className="text-sm text-gray-700">
+                          Paid Amount:
+                        </span>
+                        <span className="text-sm text-gray-900 font-medium">
+                          <input
+                            type="number"
+                            value={amt}
+                             onChange={(e)=>setAmt(e.target.value)}
+                            className="border border-gray-300 rounded p-1 text-sm flex-grow w-full"
+                            placeholder="Enter Advance Amount"
+                          />
+                        </span>
+                      </div>
+                      <div className="flex flex-row justify-between items-center p-2">
+                        <span className="text-sm text-gray-700">
+                          Remaining Amount:
+                        </span>
+                        <span className="text-sm text-gray-900 font-medium">
+                          ₹{totalAmount-bookedRoom?.advamount-amt}
+                        </span>
+                      </div>
+                      <div className="flex flex-row justify-between items-center p-2">
+                    <span className="text-sm text-gray-700">Payment Mode</span>
+                      <span className="text-sm text-gray-900 font-medium">
+                      <select
+                          id="paymentmode"
+                          {...register("paymentmode", {
+                            onBlur: () => trigger("paymentmode"),
+                          })}
+                          value={paymentMode}
+                          onChange={handlePaymentModeChange}
+                          className="border p-2 rounded-md w-full"
+                        >
+                          <option value="">Select Payment Mode</option>
+                          <option value="Online">Online</option>
+                          <option value="Card">Card</option>
+                          <option value="Cash">Cash</option>
+                        </select>
+                        {errors.paymentmode && (
+                          <p className="text-red-500 text-sm">
+                            {errors.paymentmode.message}
+                          </p>
+                        )}
+                      </span>
+                      <span className="text-sm text-gray-700">TnxId:</span>
+                      <span className="text-sm text-gray-900 font-medium">
+                      <input
+                          id="tnx_id"
+                          placeholder="tnx12334"
+                          {...register("tnx_id")}
+                          value={watch("tnx_id") || tnx_id}
+                          onChange={handleTnxId}
+                          className="border p-2 rounded-md w-full"
+                        />
+                      </span>
+                    </div>
+                   
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <button
+                        onClick={handleSubmitModal}
+                        className="flex-grow bg-green-500 text-white py-2 rounded-lg text-lg font-medium shadow-md hover:bg-blue-600 ml-2"
+                      >
+                        Submit Data
+                      </button>
+                      <button
+                        onClick={() => navigate("/")}
+                        className="flex-grow bg-red-500 text-white py-2 rounded-lg text-lg font-medium shadow-md hover:bg-blue-600 ml-2"
+                      >
+                        Skip
+                      </button>
+                    </div>
+
+                    {/* Close Button */}
+                    <button
+                      onClick={closeModal}
+                      className="absolute top-0 right-0 p-2 text-gray-700 hover:text-gray-900"
+                    >
+                      <span className="font-bold text-xl">&times;</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
       </main>
     </div>
   );

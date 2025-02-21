@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import axios from 'axios';
+import apiClient from '../../api/apiClient';
 import Header from "../common/Header";
 import { useLocation } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
@@ -16,7 +16,7 @@ const UpdateForm = () => {
         {
           name: "", gender: "", age: "", photo: null, image: null, idtype: "", address: "",
           email: "", mobile: "", checkInDate: "", checkOutDate: "", roomno: "", tariff: "",
-          advamount: "", purpose: "", comefrom: "", goingto: "", status: "",idtype:""
+          advamount: "", purpose: "", comefrom: "", goingto: "", status: ""
         }
       ],
     },
@@ -30,7 +30,7 @@ const UpdateForm = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get(`${baseURL}/api/booking/getParticularBooking/${booking.bookingId}`);
+        const response = await apiClient.get(`${baseURL}/api/booking/getParticularBooking/${booking.bookingId}`);
         const data = response.data;
         const formattedData = data.map(member => ({
           ...member,

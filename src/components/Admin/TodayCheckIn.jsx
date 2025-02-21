@@ -10,7 +10,7 @@ import {
 import { Tooltip } from '@mui/material';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import apiClient from "../../api/apiClient";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { baseURL } from "../../../config";
@@ -118,7 +118,7 @@ const  TodayCheckIn= () => {
     if (!selectedBooking) return; // Exit if no booking selected
 
     try {
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${baseURL}/api/booking/changeStatusBooking/${selectedBooking.id}`,
         {
           status: "Cancelled",
@@ -174,7 +174,7 @@ const  TodayCheckIn= () => {
     handleClose();
     try {
       // Assuming your API endpoint for changing status looks like this
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${baseURL}/api/booking/checkout/${book.bookingId}`,
         {
           formData,
@@ -200,7 +200,7 @@ const  TodayCheckIn= () => {
   // Update fetchBooking to also set allBookings
   const fetchBooking = async () => {
     try {
-      const response = await axios.get(`${baseURL}/api/getAllTodayCheckInBooking`);
+      const response = await apiClient.get(`${baseURL}/api/getAllTodayCheckInBooking`);
       setFilteredBooking(response.data); // Set the filtered list
       setAllBookings(response.data); // Store the full list
     } catch (error) {
@@ -223,7 +223,7 @@ const  TodayCheckIn= () => {
   const handleCheckIn = async () => {
     try {
       // Assuming your API endpoint for changing status looks like this
-      const response = await axios.post(
+      const response = await apiClient.post(
         `${baseURL}/api/booking/changeStatusBooking/${book.id}`,
         {
           status: "CheckIn", // or any other status you want to set

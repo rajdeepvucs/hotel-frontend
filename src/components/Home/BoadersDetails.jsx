@@ -4,235 +4,45 @@ import { useForm, Controller } from 'react-hook-form';
 import {  useLocation, useNavigate } from 'react-router-dom';
 import { baseURL } from '../../../config';
 import apiClient from '../../api/apiClient';
-function BookingDetails() {
+function BoadersDetails() {
 
 const navigate=useNavigate()
   const location = useLocation();
   
-  const [booking, setBooking] = useState(location.state?.booking || {});
-
+  const bookingId = location.state?.bookingId || {};
+console.log(bookingId)
   const [boarders, setBoarders] = useState([]);
  // Fetch boarders from the server
  const fetchBoarders = async () => {
   try {
-    if (booking) {
-      const response = await apiClient.get(`${baseURL}/api/booking/boaders`, {
+    if (bookingId) {
+      const response = await apiClient.get(`${baseURL}/api/booking/getParticularBookingByDate_Roomno`, {
         params: {
-          bookingId: booking?.bookingId, // First parameter
-          checkInDate: booking?.checkInDate, // Second parameter
-          roomno:booking?.roomno
+          bookingId: bookingId, // First parameter
+         
         },
       });
 
-      setBoarders(response.data); // Set the fetched boarders into state
+      setBoarders(response.data.data); // Set the fetched boarders into state
     }
   } catch (error) {
     console.error("Failed to fetch boarders:", error);
   }
 };
-
+const status = boarders && boarders.length > 0 ? boarders[0].status : null;
+  
+const showActionButtons = status !== 'CheckOut'; 
 useEffect(() => {
   // Fetch boarders when the component mounts
   fetchBoarders();
-}, [booking]);
- // Get the status of the booking
- const status = boarders && boarders.length > 0 ? boarders[0].status : null;
+}, [bookingId]);
   
- const showActionButtons = status !== 'CheckOut' &&  status !== 'Advance Booking'; 
   return (
     <div className='flex-1 overflow-auto relative z-10'>
       <Header title='Booking Details' />
 
       <main className='max-w-7xl mx-auto py-6 px-4 lg:px-8'>
-        {/* <div className='flex flex-col justify-center items-center'>
-         
-          <form  className="border border-gray-300 p-6 rounded-md shadow-md bg-white">
-          <div className="grid grid-cols-5 gap-4">
-          <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="roomNo" className='text-base'>Name</label>
-               <input
-                 id="roomNo"
-                 type="text"
-                
-                 {...register('name', { required: 'Room no is required' })}
-                 className='border p-2 rounded-md w-full'
-               />
-               {errors.roomNo && <p className="text-red-500 text-sm">{errors.roomNo.message}</p>}
-             </div>
-             <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="roomNo" className='text-base'>Age</label>
-               <input
-                 id="roomNo"
-                 type="text"
-                
-                 {...register('age', { required: 'Room no is required' })}
-                 className='border p-2 rounded-md w-full'
-               />
-               {errors.roomNo && <p className="text-red-500 text-sm">{errors.roomNo.message}</p>}
-             </div>
-             <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="roomNo" className='text-base'>Gender</label>
-               <input
-                 id="roomNo"
-                 type="text"
-                
-                 {...register('gender', { required: 'Gender no is required' })}
-                 className='border p-2 rounded-md w-full'
-               />
-               {errors.roomNo && <p className="text-red-500 text-sm">{errors.roomNo.message}</p>}
-             </div>
-             <div className='flex flex-col space-y-1 mb-4'>
-             <label htmlFor="roomNo" className='text-base'>Photo</label>
-             <img
-                    src={`${baseURL}/${booking.photo}`}
-                    alt={booking.name}
-                    className="w-32 h-32 object-cover"
-                  />
-             </div>
-             <div className='flex flex-col space-y-1 mb-4'>
-             <label htmlFor="roomNo" className='text-base'>Id Proof</label>
-             <img
-                    src={`${baseURL}/${booking.image}`}
-                    alt={booking.name}
-                    className="w-32 h-32 object-cover"
-                  />
-             </div>
-          </div>
-           <div className="grid grid-cols-3 gap-4">
-           <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="roomNo" className='text-base'>Room No</label>
-               <input
-                 id="roomNo"
-                 type="text"
-                 value={booking.roomno}
-                 {...register('roomNo', { required: 'Room no is required' })}
-                 className='border p-2 rounded-md w-full'
-               />
-               {errors.roomNo && <p className="text-red-500 text-sm">{errors.roomNo.message}</p>}
-             </div>
-           <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="checkInDate" className='text-base'>Check-In Date</label>
-               <input
-                 id="checkInDate"
-                 type="date"
-                 
-                 {...register('checkInDate', { required: 'Check-In Date is required' })}
-                 className='border p-2 rounded-md w-full'
-               />
-               {errors.checkInDate && <p className="text-red-500 text-sm">{errors.checkInDate.message}</p>}
-             </div>
-
-             <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="checkOutDate" className='text-base'>Check-Out Date</label>
-               <input
-                 id="checkOutDate"
-                 type="date"
-                 {...register('checkOutDate', { required: 'Check-Out Date is required' })}
-                 className='border p-2 rounded-md w-full'
-               />
-               {errors.checkOutDate && <p className="text-red-500 text-sm">{errors.checkOutDate.message}</p>}
-             </div>
-           </div>
         
-
-           
-           <div className='grid grid-cols-3 gap-4'>
-           <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="mobile" className='text-base'>Mobile</label>
-               <input 
-                 id="mobile"
-                 type="text"
-                 placeholder='(+91)09749123654'
-                 {...register('mobile', { required: 'Mobile is required' })}
-                 className='border p-2 rounded-md w-full'
-               />
-               {errors.mobile && <p className="text-red-500 text-sm">{errors.mobile.message}</p>}
-             </div>
-
-             <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="address" className='text-base'>Address</label>
-               <input 
-                 id="address"
-                 type="text"
-                 placeholder='R.N Road Siliguri Darjeeling'
-                 {...register('address', { required: 'Address is required' })}
-                 className='border p-2 rounded-md w-full'
-               />
-               {errors.address && <p className="text-red-500 text-sm">{errors.address.message}</p>}
-             </div>
-             
-             <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="email" className='text-base'>Email</label>
-               <input 
-                 id="email"
-                 type="email"
-                 placeholder='example@gmail.com'
-                 {...register('email', { required: 'Email is required' })}
-                 className='border p-2 rounded-md w-full'
-               />
-               {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
-             </div>
-           </div>
-     <div className='grid grid-cols-2 gap-4'>
-             <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="amount" className='text-base'>Tariff</label>
-               <input
-                 id="amount"
-                 placeholder='Rs/-800'
-                 {...register('tariff', )}
-                 className='border p-2 rounded-md w-full'
-               />
-              
-             </div>
-
-             <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="advamount" className='text-base'>Advance Amount</label>
-               <input
-                 id="advamount"
-                 placeholder='Rs/-800'
-                 {...register('advamount')}
-                 className='border p-2 rounded-md w-full'
-               />
-             </div>
-           </div>
-           <div className='grid grid-cols-3 gap-4'>
-             <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="amount" className='text-base'>Purpose</label>
-               <input
-                 id="amount"
-                 placeholder='eg. Travelling'
-                 {...register('purpose', )}
-                 className='border p-2 rounded-md w-full'
-               />
-              
-             </div>
-
-             <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="advamount" className='text-base'>Going To</label>
-               <input
-                 id="goingto"
-                 placeholder='Kolkata'
-                 {...register('goingto')}
-                 className='border p-2 rounded-md w-full'
-               />
-             </div>
-             <div className='flex flex-col space-y-1 mb-4'>
-               <label htmlFor="advamount" className='text-base'>Coming From</label>
-               <input
-                 id="comingfrom"
-                 placeholder='Puri'
-                 {...register('comingfrom')}
-                 className='border p-2 rounded-md w-full'
-               />
-             </div>
-           </div>
-           <div className='grid grid-cols-1 gap-4'>
-         
-           </div>
-     
-         
-         </form>
-        </div> */}
            <>
                         <div className="border border-gray-300 rounded-md p-6 shadow-md relative mt-4">
                           <h2 className="absolute -top-3 left-5 bg-white px-2 text-lg font-semibold text-gray-700">
@@ -293,24 +103,12 @@ useEffect(() => {
                             </div>
                             <div className="flex flex-col space-y-1">
                               <label htmlFor="totalNights" className="text-base">
-                               Status
+                               Room Type
                               </label>
                               <input
                                 id="totalNights"
                                 type="text"
-                                value={boarders[0]?.status }
-                                className="border p-2 rounded-md w-full"
-                                readOnly
-                              />
-                            </div>
-                            <div className="flex flex-col space-y-1">
-                              <label htmlFor="totalNights" className="text-base">
-                              Room Type
-                              </label>
-                              <input
-                                id="totalNights"
-                                type="text"
-                                value={boarders[0]?.roomType }
+                                value={boarders[0]?.roomType || ""}
                                 className="border p-2 rounded-md w-full"
                                 readOnly
                               />
@@ -560,7 +358,7 @@ useEffect(() => {
                               <input
                                 id="roomNo"
                                 type="text"
-                                value={boarders[0]?.comefrom || 0}
+                                value={boarders[0]?.comefrom ? boarders[0].comefrom.toUpperCase() : ""}
                                 className="border p-2 rounded-md w-full uppercase"
                                 readOnly
                               />
@@ -579,64 +377,59 @@ useEffect(() => {
                             </div>
                           </div>
                         </div>
-                      
-                        <div className="flex flex-row items-center justify-center w-full">
-            <div className="bg-gray-200 p-4 rounded">
-                <button
-                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
-                    onClick={() => navigate(-1)}
-                >
-                    Back
-                </button>
-            </div>
-            {showActionButtons && (
-                <>
-                  <div className="bg-gray-200 p-4 rounded">
-                    <button
-                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
-                        onClick={() => {
-                            if (boarders && boarders.length > 0) {
-                              navigate("/checkout", { state: { book: boarders[0] } });
-                            }
-                        }}
-                    >
-                        CheckOut
-                    </button>
-                  </div>
-                <div className="bg-gray-200 p-4 rounded">
-                    <button
-                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
-                        onClick={() => {
-                            if (boarders && boarders.length > 0) {
-                              navigate("/payment", {
+                        <div class="flex  flex-row items-center justify-center w-full ">
+                          <div class="bg-gray-200 p-4 rounded">
+                            <button
+                              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
+                              onClick={() => {
+                                navigate(-1);
+                              }}
+                            >
+                              Back
+                            </button>
+                            
+                          </div>
+                          {showActionButtons && (<> 
+                            <div class="bg-gray-200 p-4 rounded">
+                            <button
+                              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
+                              onClick={() => {
+                                navigate("/checkout", { state: { book: boarders[0] } });
+                              }}
+                            >
+                              CheckOut
+                            </button>
+                          </div>
+                          <div class="bg-gray-200 p-4 rounded">
+                            <button
+                              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
+                              onClick={() => {
+                                navigate("/payment", {
                                   state: { book: boarders[0]?.bookingId },
-                              });
-                            }
-                        }}
-                    >
-                        Pay
-                    </button>
-                </div>
-                <div className="bg-gray-200 p-4 rounded">
-                    <button
-                        className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
-                        onClick={() => {
-                            if (boarders && boarders.length > 0) {
-                              navigate("/extenddate", { state: { boarders } });
-                            }
-                        }}
-                    >
-                        Extend Date
-                    </button>
-                </div>
-                </>
-            )}
-        </div>
+                                });
+                              }}
+                            >
+                              Pay
+                            </button>
+                          </div>
+                          <div class="bg-gray-200 p-4 rounded">
+                            <button
+                              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-auto block"
+                              onClick={() => {
+                                navigate("/extenddate", { state: { boarders, room } });
+                              }}
+                            >
+                              Extend Date
+                            </button>
+                          </div>
+                          </>)}
+                       
+                        </div>
                       </>
       </main>
     </div>
   );
 }
 
-export default BookingDetails;
+export default BoadersDetails;
  

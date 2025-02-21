@@ -3,7 +3,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { motion } from "framer-motion";
 import Header from "../common/Header";
-import axios from "axios"; 
+import apiClient from "../../api/apiClient"; 
 import Tooltip, { tooltipClasses } from '@mui/material/Tooltip';
 import { styled } from '@mui/material/styles';
 import { Typography } from '@mui/material';
@@ -33,7 +33,7 @@ const VacentRoom = () => {
         const fetchRoom = async () => {
             try {
                 
-                const response = await axios.get(`${baseURL}/api/room/getRooms`); 
+                const response = await apiClient.get(`${baseURL}/api/room/getRooms`); 
                 setRoom(response.data); // Set the rooms data
             } catch (error) {
                 console.error("Error fetching rooms:", error);
@@ -49,7 +49,7 @@ const VacentRoom = () => {
             try {
                 const formattedDate = selectedDate.toISOString().split("T")[0]; 
                
-                const response = await axios.get(`${baseURL}/api/booking/checkavaildate/${formattedDate}`); 
+                const response = await apiClient.get(`${baseURL}/api/booking/checkavaildate/${formattedDate}`); 
                 setRooms(response.data); // Set the rooms data
             } catch (error) {
                 console.error("Error fetching rooms:", error);
@@ -78,7 +78,7 @@ const VacentRoom = () => {
             const formattedDate = selectedDate.toISOString().split("T")[0];
             
         
-		  const response = await axios.get(`${baseURL}/api/booking/getParticularDayBooking/${formattedDate}`);
+		  const response = await apiClient.get(`${baseURL}/api/booking/getParticularDayBooking/${formattedDate}`);
 		
 		  setBoarders(response.data)
 		} catch (error) {
